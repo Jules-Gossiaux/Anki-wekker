@@ -1,10 +1,7 @@
 package com.julesgossiaux.ankiwekker.alarm
 
-import android.media.AudioAttributes
-import android.media.MediaPlayer
-import android.media.RingtoneManager
+import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -18,13 +15,11 @@ import androidx.compose.ui.Modifier
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 
 class AlarmActivity : ComponentActivity() {
-    private var alarmPlayer: MediaPlayer? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
-        startAlarmSound()
+        startSessionService()
         openAnkiDroid()
 
         setContent {
@@ -36,7 +31,10 @@ class AlarmActivity : ComponentActivity() {
                 ) {
                     Text("Révision AnkiDroid", style = MaterialTheme.typography.headlineMedium)
                     Text("Tes cartes dues t'attendent")
-                    Button(onClick = { finish() }) {
+                    Button(onClick = {
+                        stopService(StudySessionService.stopIntent(this@AlarmActivity))
+                        finish()
+                    }) {
                         Text("Arrêter la sonnerie")
                     }
                 }
@@ -44,25 +42,11 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    override fun onDestroy() {
-        alarmPlayer?.release()
-        alarmPlayer = null
-        super.onDestroy()
-    }
-
-    private fun startAlarmSound() {
-        val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: Settings.System.DEFAULT_NOTIFICATION_URI
-        alarmPlayer = MediaPlayer.create(this, alarmUri)?.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            isLooping = true
-            start()
-        }
+    private fun startSessionService() {
+        androidx.core.content.ContextCompat.startForegroundService(
+            this,
+            Intent(this, StudySessionService::class.java),
+        )
     }
 
     private fun openAnkiDroid() {

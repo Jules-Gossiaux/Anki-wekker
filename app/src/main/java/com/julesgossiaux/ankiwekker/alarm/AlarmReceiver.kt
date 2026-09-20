@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.julesgossiaux.ankiwekker.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +17,11 @@ import kotlinx.coroutines.launch
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, StudySessionService::class.java),
+        )
         val notificationManager = context.getSystemService(NotificationManager::class.java)
-        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -26,13 +30,7 @@ class AlarmReceiver : BroadcastReceiver() {
             ).apply {
                 description = "Alarmes de révision AnkiDroid"
                 enableVibration(true)
-                setSound(
-                    alarmSound,
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
+                setSound(null, null)
             },
         )
 
@@ -67,7 +65,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setFullScreenIntent(fullScreenIntent, true)
-                .setAutoCancel(true)
+                .setSilent(true)
+                .setAutoCancel(false)
                 .setContentIntent(reviewIntent)
                 .addAction(0, "Ouvrir AnkiDroid", reviewIntent)
                 .build(),
@@ -84,7 +83,7 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "anki_review_alarm_v2"
+        private const val CHANNEL_ID = "anki_review_alarm_v3"
         private const val NOTIFICATION_ID = 2001
     }
 }
