@@ -12,7 +12,7 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 - calculer et afficher un compteur dû pour une sélection ; **prototype terminé, sélection persistante**
 - ouvrir AnkiDroid ; **terminé**
 - documenter les cas non accessibles ; **terminé dans le contrat, validation appareil restante**
-- produire une validation sur le OnePlus 10 Pro. **en cours : APK installée, validation manuelle de la sélection à consigner**
+- produire une validation sur le OnePlus 10 Pro. **sélection et compteur validés manuellement ; alarme validée sur appareil**
 - rendre la vue de sélection défilable sur les collections longues ; **terminé**
 
 ## Phase 2 — alarme minimale
@@ -20,8 +20,8 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 - créer une alarme unique ; **prototype quotidien livré, heure persistée**
 - déclencher audio/vibration ; **sonnerie en boucle et notification haute priorité livrées**
 - ouvrir AnkiDroid ; **ouverture automatique via écran d'alerte livrée**
-- cycle borné et notification ;
-- restaurer l'alarme après redémarrage.
+- cycle borné et notification ; **notification et écran plein écran validés ; arrêt automatique sur compteur restant à implémenter**
+- restaurer l'alarme après redémarrage. **reprogrammation quotidienne livrée ; test après redémarrage à compléter**
 
 ## Phase 3 — session conditionnelle
 

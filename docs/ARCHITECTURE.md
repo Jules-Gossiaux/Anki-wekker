@@ -54,6 +54,8 @@ Idle
 
 Une transition vers `Completed` exige une lecture valide du compteur ciblé à zéro. `Unavailable` est borné dans le temps et ne doit pas être confondu avec `Completed`.
 
+La planification et le déclenchement de la première alarme sont maintenant validés sur le téléphone cible. La prochaine tranche implémente le coordinateur de session entre `Triggered`, `WaitingForAnki`, `Studying`, `InactiveAlert` et `Completed`.
+
 ## Alarmes multiples
 
 Chaque alarme est indépendante. Le planificateur calcule la prochaine occurrence de chaque alarme active. Si deux alarmes se chevauchent, l'application doit fusionner la surveillance pendant la même période mais conserver les sélections et les résultats séparés ; cette règle devra être confirmée par un test avant implémentation.

@@ -56,6 +56,14 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - vérifier la reprogrammation quotidienne après le déclenchement ;
 - tester écran verrouillé, mode silencieux et optimisation batterie OxygenOS.
 
+### Validation appareil — 2026-09-20
+
+- appareil : OnePlus 10 Pro ;
+- système : OxygenOS 16 ;
+- résultat : alarme déclenchée, sonnerie fonctionnelle, AnkiDroid ouvert automatiquement ;
+- statut : validation manuelle réussie pour cette tranche ;
+- reste à tester : redémarrage du téléphone, optimisation batterie et arrêt automatique après compteur à zéro.
+
 ## Critère de preuve
 
 Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil cible et consignation de la date, version Android/OxygenOS, permissions et résultat. Les limites OEM restent explicitement documentées.
