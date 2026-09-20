@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.julesgossiaux.ankiwekker.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +17,22 @@ import kotlinx.coroutines.launch
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, StudySessionService::class.java),
+        )
+        context.packageManager.getLaunchIntentForPackage("com.ichi2.anki")?.let { ankiIntent ->
+            runCatching {
+                context.startActivity(
+                    ankiIntent.addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    ),
+                )
+            }
+        }
         val notificationManager = context.getSystemService(NotificationManager::class.java)
-        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -26,13 +41,7 @@ class AlarmReceiver : BroadcastReceiver() {
             ).apply {
                 description = "Alarmes de révision AnkiDroid"
                 enableVibration(true)
-                setSound(
-                    alarmSound,
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
+                setSound(null, null)
             },
         )
 
@@ -47,16 +56,22 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.getActivity(
                 context,
                 1003,
-                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                it.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+                ),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         } ?: contentIntent
-        val fullScreenIntent = PendingIntent.getActivity(
+        val alarmActivityIntent = PendingIntent.getActivity(
             context,
             1004,
             Intent(context, AlarmActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val fullScreenIntent = if (ankiIntent != null) reviewIntent else alarmActivityIntent
 
         notificationManager.notify(
             NOTIFICATION_ID,
@@ -67,7 +82,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setFullScreenIntent(fullScreenIntent, true)
-                .setAutoCancel(true)
+                .setSilent(true)
+                .setAutoCancel(false)
                 .setContentIntent(reviewIntent)
                 .addAction(0, "Ouvrir AnkiDroid", reviewIntent)
                 .build(),
@@ -84,7 +100,7 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "anki_review_alarm_v2"
-        private const val NOTIFICATION_ID = 2001
+        private const val CHANNEL_ID = "anki_review_alarm_v3"
+        const val NOTIFICATION_ID = 2001
     }
 }

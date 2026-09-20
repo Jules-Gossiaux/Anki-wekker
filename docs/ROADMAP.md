@@ -25,11 +25,11 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 ## Phase 3 — session conditionnelle
 
-- relire le compteur ;
-- arrêter à zéro ;
-- relancer après inactivité ;
-- gérer sortie d'AnkiDroid ;
-- gérer indisponibilité et fallback.
+- relire le compteur ; **service de session avec polling toutes les 20 secondes**
+- arrêter à zéro ; **arrêt automatique implémenté**
+- relancer après inactivité ; **cycles de sonnerie de 10 secondes implémentés**
+- gérer sortie d'AnkiDroid ; **surveillance indépendante de l'activité implémentée ; validation OEM restante**
+- gérer indisponibilité et fallback. **notification d'état et nouvelles tentatives implémentées**
 
 ## Phase 4 — produit MVP
 
