@@ -13,6 +13,7 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 - ouvrir AnkiDroid ; **terminé**
 - documenter les cas non accessibles ; **terminé dans le contrat, validation appareil restante**
 - produire une validation sur le OnePlus 10 Pro. **en cours : APK installée, validation manuelle de la sélection à consigner**
+- rendre la vue de sélection défilable sur les collections longues ; **terminé**
 
 ## Phase 2 — alarme minimale
 

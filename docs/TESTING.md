@@ -61,6 +61,7 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - vérifier le bouton « Ouvrir AnkiDroid » ;
 - appuyer sur « Sélectionner les decks », vérifier l'arborescence repliable et sélectionner un deck ;
 - vérifier que chaque deck affiche son nombre de cartes dues et que les parents agrègent leurs sous-decks ;
+- faire défiler la vue de sélection et vérifier que le bouton « Confirmer la sélection » est entièrement accessible ;
 - sélectionner un deck parent et vérifier que ses sous-decks sont également inclus dans le total ;
 - rouvrir une ancienne sélection contenant un parent et vérifier que ses sous-decks sont automatiquement repris ;
 - modifier la sélection et vérifier que « Cartes dues sélectionnées » est recalculé immédiatement ;
