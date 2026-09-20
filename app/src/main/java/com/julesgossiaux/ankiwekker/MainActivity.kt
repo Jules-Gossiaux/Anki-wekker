@@ -1,10 +1,13 @@
 package com.julesgossiaux.ankiwekker
 
+import android.app.TimePickerDialog
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
@@ -21,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.julesgossiaux.ankiwekker.alarm.AlarmScheduler
+import com.julesgossiaux.ankiwekker.alarm.AlarmSettings
+import com.julesgossiaux.ankiwekker.alarm.AlarmStore
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDeck
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
@@ -44,6 +52,8 @@ class MainActivity : ComponentActivity() {
             AnkiWekkerApp(
                 gateway = AnkiDroidGateway(applicationContext),
                 selectionStore = DeckSelectionStore(applicationContext),
+                alarmStore = AlarmStore(applicationContext),
+                alarmScheduler = AlarmScheduler(applicationContext),
             )
         }
     }
@@ -53,6 +63,8 @@ class MainActivity : ComponentActivity() {
 private fun AnkiWekkerApp(
     gateway: AnkiDroidGateway,
     selectionStore: DeckSelectionStore,
+    alarmStore: AlarmStore,
+    alarmScheduler: AlarmScheduler,
 ) {
     var status by remember { mutableStateOf("Prêt à vérifier AnkiDroid") }
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
@@ -61,7 +73,12 @@ private fun AnkiWekkerApp(
     var selectedDeckIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var alarmSettings by remember { mutableStateOf(AlarmSettings()) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -69,6 +86,13 @@ private fun AnkiWekkerApp(
             "Accès AnkiDroid accordé — clique à nouveau pour lire les cartes"
         } else {
             "Accès AnkiDroid refusé — autorise la permission pour continuer"
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        alarmSettings = alarmStore.read()
+        if (alarmSettings.enabled && alarmScheduler.canScheduleExactAlarms()) {
+            alarmScheduler.scheduleDaily(alarmSettings.hour, alarmSettings.minute)
         }
     }
 
@@ -122,6 +146,46 @@ private fun AnkiWekkerApp(
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(status, modifier = Modifier.padding(top = 24.dp))
+                AlarmCard(
+                    settings = alarmSettings,
+                    onSetTime = {
+                        TimePickerDialog(
+                            context,
+                            { _, hour, minute ->
+                                if (!alarmScheduler.canScheduleExactAlarms()) {
+                                    context.startActivity(alarmScheduler.exactAlarmSettingsIntent())
+                                    status = "Autorise les alarmes exactes puis réessaie"
+                                } else {
+                                    val newSettings = AlarmSettings(true, hour, minute)
+                                    alarmSettings = newSettings
+                                    alarmScheduler.scheduleDaily(hour, minute)
+                                    scope.launch { alarmStore.save(newSettings) }
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                                    }
+                                    status = "Alarme activée pour ${formatAlarmTime(hour, minute)}"
+                                }
+                            },
+                            alarmSettings.hour,
+                            alarmSettings.minute,
+                            true,
+                        ).show()
+                    },
+                    onToggle = {
+                        val newSettings = alarmSettings.copy(enabled = !alarmSettings.enabled)
+                        alarmSettings = newSettings
+                        if (newSettings.enabled) {
+                            if (alarmScheduler.canScheduleExactAlarms()) {
+                                alarmScheduler.scheduleDaily(newSettings.hour, newSettings.minute)
+                            } else {
+                                context.startActivity(alarmScheduler.exactAlarmSettingsIntent())
+                            }
+                        } else {
+                            alarmScheduler.cancel()
+                        }
+                        scope.launch { alarmStore.save(newSettings) }
+                    },
+                )
                 Button(
                     enabled = !loading,
                     onClick = {
@@ -231,6 +295,29 @@ private fun AnkiWekkerApp(
         }
     }
 }
+
+@Composable
+private fun AlarmCard(
+    settings: AlarmSettings,
+    onSetTime: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    Text(
+        text = "Alarme quotidienne",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = 20.dp),
+    )
+    Button(onClick = onSetTime, modifier = Modifier.padding(top = 8.dp)) {
+        Text(formatAlarmTime(settings.hour, settings.minute))
+    }
+    Button(onClick = onToggle, modifier = Modifier.padding(top = 8.dp)) {
+        Text(if (settings.enabled) "Désactiver l'alarme" else "Activer l'alarme")
+    }
+    Spacer(modifier = Modifier.padding(bottom = 4.dp))
+}
+
+private fun formatAlarmTime(hour: Int, minute: Int): String =
+    "%02d:%02d".format(hour, minute)
 
 @Composable
 private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
