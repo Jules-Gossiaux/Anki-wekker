@@ -184,11 +184,11 @@ private fun AnkiWekkerApp(
                         decks = decks,
                         dueCountsByDeckId = dueCountsByDeckId,
                         selectedDeckIds = selectedDeckIds,
-                        onSelectionChanged = { deckId, checked ->
+                        onSelectionChanged = { deckIds, checked ->
                             selectedDeckIds = if (checked) {
-                                selectedDeckIds + deckId
+                                selectedDeckIds + deckIds
                             } else {
-                                selectedDeckIds - deckId
+                                selectedDeckIds - deckIds
                             }
                         },
                         modifier = Modifier
@@ -288,7 +288,7 @@ private fun DeckSelectionTree(
     decks: List<AnkiDeck>,
     dueCountsByDeckId: Map<String, Int>,
     selectedDeckIds: Set<String>,
-    onSelectionChanged: (String, Boolean) -> Unit,
+    onSelectionChanged: (Set<String>, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expandedPaths by remember { mutableStateOf(emptySet<String>()) }
@@ -323,10 +323,11 @@ private fun DeckTreeRow(
     expandedPaths: Set<String>,
     onExpandToggle: (String) -> Unit,
     selectedDeckIds: Set<String>,
-    onSelectionChanged: (String, Boolean) -> Unit,
+    onSelectionChanged: (Set<String>, Boolean) -> Unit,
 ) {
     val hasChildren = node.children.isNotEmpty()
     val expanded = node.path in expandedPaths
+    val nodeDeckIds = node.allDeckIds()
 
     Row(
         modifier = Modifier
@@ -346,11 +347,11 @@ private fun DeckTreeRow(
                 .fillMaxWidth(0.08f),
             style = MaterialTheme.typography.titleMedium,
         )
-        node.deck?.let { deck ->
+        node.deck?.let {
             Checkbox(
-                checked = deck.identifier in selectedDeckIds,
+                checked = nodeDeckIds.all { it in selectedDeckIds },
                 onCheckedChange = { checked ->
-                    onSelectionChanged(deck.identifier, checked)
+                    onSelectionChanged(nodeDeckIds, checked)
                 },
             )
         }
@@ -380,6 +381,11 @@ private fun DeckTreeRow(
             )
         }
     }
+}
+
+private fun DeckTreeNode.allDeckIds(): Set<String> = buildSet {
+    deck?.let { add(it.identifier) }
+    children.forEach { addAll(it.allDeckIds()) }
 }
 
 private fun buildDeckTree(

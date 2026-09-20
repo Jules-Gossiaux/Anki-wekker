@@ -52,6 +52,8 @@ Les résultats sont classés selon la convention Anki des sous-decks (`Parent::E
 
 La vue de sélection recharge également le compteur global `is:due` et affiche le nombre dû à droite de chaque deck. Les nœuds parents affichent la somme de leurs cartes et de celles de leurs descendants ; le total « Cartes dues sélectionnées » est recalculé lors de chaque modification de sélection.
 
+Sélectionner un deck parent sélectionne aussi tous ses sous-decks, conformément au comportement attendu dans Anki. La désélection du parent retire également ses descendants du périmètre surveillé.
+
 Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
 
 ## Spike de preuve
