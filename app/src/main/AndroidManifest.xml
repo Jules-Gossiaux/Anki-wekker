@@ -28,7 +28,8 @@
             android:exported="false" />
         <receiver
             android:name=".alarm.SessionWatchdogReceiver"
-            android:exported="false" />
+            android:exported="false"
+            android:process=":alarm" />
         <activity
             android:name=".alarm.AlarmActivity"
             android:exported="false"
@@ -38,6 +39,7 @@
             android:name=".alarm.StudySessionService"
             android:exported="false"
             android:stopWithTask="false"
+            android:process=":alarm"
             android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>

@@ -9,11 +9,20 @@ import android.os.SystemClock
 object SessionWatchdog {
     fun schedule(context: Context) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.ELAPSED_REALTIME_WAKEUP,
-            SystemClock.elapsedRealtime() + RESTART_DELAY_MILLIS,
-            pendingIntent(context),
-        )
+        val triggerAtMillis = SystemClock.elapsedRealtime() + RESTART_DELAY_MILLIS
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                triggerAtMillis,
+                pendingIntent(context),
+            )
+        } else {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                triggerAtMillis,
+                pendingIntent(context),
+            )
+        }
     }
 
     fun cancel(context: Context) {
