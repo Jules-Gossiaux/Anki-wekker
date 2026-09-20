@@ -56,16 +56,22 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.getActivity(
                 context,
                 1003,
-                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                it.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+                ),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         } ?: contentIntent
-        val fullScreenIntent = PendingIntent.getActivity(
+        val alarmActivityIntent = PendingIntent.getActivity(
             context,
             1004,
             Intent(context, AlarmActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val fullScreenIntent = if (ankiIntent != null) reviewIntent else alarmActivityIntent
 
         notificationManager.notify(
             NOTIFICATION_ID,

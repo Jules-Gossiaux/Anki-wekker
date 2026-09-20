@@ -52,6 +52,7 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - vérifier que l'alarme reste activée après fermeture de l'application ;
 - vérifier la notification et son action « Ouvrir AnkiDroid » ;
 - vérifier que l'écran d'alerte ouvre automatiquement AnkiDroid et que la sonnerie boucle ;
+- vérifier que l'intention plein écran ouvre directement AnkiDroid lorsque l'application est en arrière-plan ou l'écran verrouillé ;
 - vérifier que « Arrêter la sonnerie » coupe bien le son ;
 - vérifier la reprogrammation quotidienne après le déclenchement ;
 - tester écran verrouillé, mode silencieux et optimisation batterie OxygenOS.
