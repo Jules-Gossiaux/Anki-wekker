@@ -177,7 +177,7 @@ class StudySessionService : Service() {
         private const val SESSION_CHANNEL_ID = "anki_review_session"
         private const val NOTIFICATION_ID = 2101
         private const val ALARM_BURST_MILLIS = 10_000L
-        private const val POLL_INTERVAL_MILLIS = 20_000L
+        private const val POLL_INTERVAL_MILLIS = 10_000L
         private const val STUDY_BURST_MILLIS = 5_000L
         private const val STUDY_POLL_MILLIS = 5_000L
 

@@ -72,6 +72,7 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - répondre à quelques cartes sans atteindre zéro et vérifier que la sonnerie suivante est supprimée après la baisse du compteur ;
 - laisser le compteur inchangé et vérifier que la sonnerie revient au cycle suivant ;
 - après une première baisse du compteur, vérifier que les contrôles se font toutes les 5 secondes ;
+- avant toute baisse, vérifier que le compteur est contrôlé toutes les 10 secondes ;
 - pendant ce mode, vérifier qu'une nouvelle baisse maintient le silence et qu'une absence de baisse relance la sonnerie ;
 - quitter AnkiDroid avec des cartes restantes et vérifier que le service continue sa surveillance ;
 - tester une collection indisponible et vérifier que la session reste en état non complété ;
