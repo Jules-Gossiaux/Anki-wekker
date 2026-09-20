@@ -17,9 +17,9 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 ## Phase 2 — alarme minimale
 
-- créer une alarme unique ;
-- déclencher audio/vibration ;
-- ouvrir AnkiDroid ;
+- créer une alarme unique ; **prototype quotidien livré, heure persistée**
+- déclencher audio/vibration ; **notification haute priorité livrée, audio à valider sur appareil**
+- ouvrir AnkiDroid ; **action de notification livrée**
 - cycle borné et notification ;
 - restaurer l'alarme après redémarrage.
 

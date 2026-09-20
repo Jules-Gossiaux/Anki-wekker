@@ -45,6 +45,15 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - absence de cartes dues ;
 - plusieurs alarmes à des heures différentes.
 
+## Première alarme — validation à effectuer
+
+- autoriser les alarmes exactes et les notifications ;
+- choisir une heure située dans les prochaines minutes ;
+- vérifier que l'alarme reste activée après fermeture de l'application ;
+- vérifier la notification et son action « Ouvrir AnkiDroid » ;
+- vérifier la reprogrammation quotidienne après le déclenchement ;
+- tester écran verrouillé, mode silencieux et optimisation batterie OxygenOS.
+
 ## Critère de preuve
 
 Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil cible et consignation de la date, version Android/OxygenOS, permissions et résultat. Les limites OEM restent explicitement documentées.
