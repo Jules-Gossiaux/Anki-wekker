@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +57,7 @@ private fun AnkiWekkerApp(
     var status by remember { mutableStateOf("Prêt à vérifier AnkiDroid") }
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
     var decks by remember { mutableStateOf<List<AnkiDeck>>(emptyList()) }
+    var dueCountsByDeckId by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedDeckIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -79,11 +82,23 @@ private fun AnkiWekkerApp(
         showDeckSelection = true
         snapshot = null
         scope.launch {
-            selectedDeckIds = selectionStore.readSelectedDeckIds()
+            val savedSelection = selectionStore.readSelectedDeckIds()
             when (val result = gateway.listDecks()) {
                 is AnkiDroidResult.Success -> {
                     decks = result.value
-                    status = "${decks.size} deck(s) chargé(s)"
+                    selectedDeckIds = expandParentSelection(result.value, savedSelection)
+                    when (val dueResult = gateway.readDueCards()) {
+                        is AnkiDroidResult.Success -> {
+                            dueCountsByDeckId = dueResult.value.decks.associate {
+                                it.identifier to it.cardCount
+                            }
+                            status = "${decks.size} deck(s) chargé(s) — ${dueResult.value.total} carte(s) due(s)"
+                        }
+                        is AnkiDroidResult.Failure -> {
+                            dueCountsByDeckId = emptyMap()
+                            status = "${decks.size} deck(s) chargé(s), compteur indisponible"
+                        }
+                    }
                 }
                 is AnkiDroidResult.Failure -> status = result.message
             }
@@ -96,7 +111,8 @@ private fun AnkiWekkerApp(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -116,9 +132,18 @@ private fun AnkiWekkerApp(
                         loading = true
                         status = "Lecture des cartes dues…"
                         scope.launch {
-                            when (val result = gateway.readDueCards(selectedDeckIds)) {
+                            val selectionToRead = if (showDeckSelection) {
+                                selectedDeckIds
+                            } else {
+                                selectionStore.readSelectedDeckIds()
+                            }
+                            selectedDeckIds = selectionToRead
+                            when (val result = gateway.readDueCards(selectionToRead)) {
                                 is AnkiDroidResult.Success -> {
                                     snapshot = result.value
+                                    dueCountsByDeckId = result.value.decks.associate {
+                                        it.identifier to it.cardCount
+                                    }
                                     showDeckSelection = false
                                     status = "Lecture réussie"
                                 }
@@ -161,25 +186,40 @@ private fun AnkiWekkerApp(
                     )
                     DeckSelectionTree(
                         decks = decks,
+                        dueCountsByDeckId = dueCountsByDeckId,
                         selectedDeckIds = selectedDeckIds,
-                        onSelectionChanged = { deckId, checked ->
+                        onSelectionChanged = { deckIds, checked ->
                             selectedDeckIds = if (checked) {
-                                selectedDeckIds + deckId
+                                selectedDeckIds + deckIds
                             } else {
-                                selectedDeckIds - deckId
-                            }
-                            scope.launch {
-                                selectionStore.saveSelectedDeckIds(selectedDeckIds)
+                                selectedDeckIds - deckIds
                             }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
                     )
+                    val selectedDueTotal = if (selectedDeckIds.isEmpty()) {
+                        dueCountsByDeckId.values.sum()
+                    } else {
+                        selectedDeckIds.sumOf { dueCountsByDeckId[it] ?: 0 }
+                    }
+                    Text(
+                        text = "Cartes dues sélectionnées : $selectedDueTotal",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
                     Button(
+                        enabled = !loading,
                         onClick = {
-                            showDeckSelection = false
-                            status = "Sélection confirmée"
+                            loading = true
+                            status = "Enregistrement de la sélection…"
+                            scope.launch {
+                                selectionStore.saveSelectedDeckIds(selectedDeckIds)
+                                showDeckSelection = false
+                                status = "Sélection confirmée"
+                                loading = false
+                            }
                         },
                         modifier = Modifier.padding(top = 12.dp),
                     ) {
@@ -243,18 +283,22 @@ private data class DeckTreeNode(
     val name: String,
     val path: String,
     val deck: AnkiDeck? = null,
+    val dueCount: Int = 0,
     val children: List<DeckTreeNode> = emptyList(),
 )
 
 @Composable
 private fun DeckSelectionTree(
     decks: List<AnkiDeck>,
+    dueCountsByDeckId: Map<String, Int>,
     selectedDeckIds: Set<String>,
-    onSelectionChanged: (String, Boolean) -> Unit,
+    onSelectionChanged: (Set<String>, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expandedPaths by remember { mutableStateOf(emptySet<String>()) }
-    val roots = remember(decks) { buildDeckTree(decks) }
+    val roots = remember(decks, dueCountsByDeckId) {
+        buildDeckTree(decks, dueCountsByDeckId)
+    }
 
     Column(modifier = modifier) {
         roots.forEach { node ->
@@ -283,10 +327,11 @@ private fun DeckTreeRow(
     expandedPaths: Set<String>,
     onExpandToggle: (String) -> Unit,
     selectedDeckIds: Set<String>,
-    onSelectionChanged: (String, Boolean) -> Unit,
+    onSelectionChanged: (Set<String>, Boolean) -> Unit,
 ) {
     val hasChildren = node.children.isNotEmpty()
     val expanded = node.path in expandedPaths
+    val nodeDeckIds = node.allDeckIds()
 
     Row(
         modifier = Modifier
@@ -306,18 +351,25 @@ private fun DeckTreeRow(
                 .fillMaxWidth(0.08f),
             style = MaterialTheme.typography.titleMedium,
         )
-        node.deck?.let { deck ->
+        node.deck?.let {
             Checkbox(
-                checked = deck.identifier in selectedDeckIds,
+                checked = nodeDeckIds.all { it in selectedDeckIds },
                 onCheckedChange = { checked ->
-                    onSelectionChanged(deck.identifier, checked)
+                    onSelectionChanged(nodeDeckIds, checked)
                 },
             )
         }
         Text(
             text = node.name,
             fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .weight(1f),
+        )
+        Text(
+            text = node.dueCount.toString(),
+            fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(end = 8.dp),
         )
     }
 
@@ -335,7 +387,15 @@ private fun DeckTreeRow(
     }
 }
 
-private fun buildDeckTree(decks: List<AnkiDeck>): List<DeckTreeNode> {
+private fun DeckTreeNode.allDeckIds(): Set<String> = buildSet {
+    deck?.let { add(it.identifier) }
+    children.forEach { addAll(it.allDeckIds()) }
+}
+
+private fun buildDeckTree(
+    decks: List<AnkiDeck>,
+    dueCountsByDeckId: Map<String, Int>,
+): List<DeckTreeNode> {
     class MutableNode(
         val name: String,
         val path: String,
@@ -359,13 +419,33 @@ private fun buildDeckTree(decks: List<AnkiDeck>): List<DeckTreeNode> {
     fun convert(nodes: Collection<MutableNode>): List<DeckTreeNode> = nodes
         .sortedBy { it.name }
         .map { node ->
+        val children = convert(node.children.values)
+        val ownDueCount = node.deck?.let { dueCountsByDeckId[it.identifier] ?: 0 } ?: 0
         DeckTreeNode(
             name = node.name,
             path = node.path,
             deck = node.deck,
-            children = convert(node.children.values),
+            dueCount = ownDueCount + children.sumOf { it.dueCount },
+            children = children,
         )
     }
 
     return convert(roots.values)
+}
+
+private fun expandParentSelection(
+    decks: List<AnkiDeck>,
+    selectedDeckIds: Set<String>,
+): Set<String> {
+    val selectedNames = decks
+        .filter { it.identifier in selectedDeckIds }
+        .map { it.name }
+
+    return selectedDeckIds + decks
+        .filter { deck ->
+            selectedNames.any { parent ->
+                deck.name == parent || deck.name.startsWith("$parent::")
+            }
+        }
+        .map { it.identifier }
 }
