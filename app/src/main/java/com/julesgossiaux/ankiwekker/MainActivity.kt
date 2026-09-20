@@ -80,10 +80,11 @@ private fun AnkiWekkerApp(
         showDeckSelection = true
         snapshot = null
         scope.launch {
-            selectedDeckIds = selectionStore.readSelectedDeckIds()
+            val savedSelection = selectionStore.readSelectedDeckIds()
             when (val result = gateway.listDecks()) {
                 is AnkiDroidResult.Success -> {
                     decks = result.value
+                    selectedDeckIds = expandParentSelection(result.value, savedSelection)
                     when (val dueResult = gateway.readDueCards()) {
                         is AnkiDroidResult.Success -> {
                             dueCountsByDeckId = dueResult.value.decks.associate {
@@ -427,4 +428,21 @@ private fun buildDeckTree(
     }
 
     return convert(roots.values)
+}
+
+private fun expandParentSelection(
+    decks: List<AnkiDeck>,
+    selectedDeckIds: Set<String>,
+): Set<String> {
+    val selectedNames = decks
+        .filter { it.identifier in selectedDeckIds }
+        .map { it.name }
+
+    return selectedDeckIds + decks
+        .filter { deck ->
+            selectedNames.any { parent ->
+                deck.name == parent || deck.name.startsWith("$parent::")
+            }
+        }
+        .map { it.identifier }
 }
