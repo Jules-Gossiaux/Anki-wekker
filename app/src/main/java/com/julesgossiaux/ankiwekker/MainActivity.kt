@@ -55,6 +55,7 @@ private fun AnkiWekkerApp(
     var status by remember { mutableStateOf("Prêt à vérifier AnkiDroid") }
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
     var decks by remember { mutableStateOf<List<AnkiDeck>>(emptyList()) }
+    var dueCountsByDeckId by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedDeckIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -83,7 +84,18 @@ private fun AnkiWekkerApp(
             when (val result = gateway.listDecks()) {
                 is AnkiDroidResult.Success -> {
                     decks = result.value
-                    status = "${decks.size} deck(s) chargé(s)"
+                    when (val dueResult = gateway.readDueCards()) {
+                        is AnkiDroidResult.Success -> {
+                            dueCountsByDeckId = dueResult.value.decks.associate {
+                                it.identifier to it.cardCount
+                            }
+                            status = "${decks.size} deck(s) chargé(s) — ${dueResult.value.total} carte(s) due(s)"
+                        }
+                        is AnkiDroidResult.Failure -> {
+                            dueCountsByDeckId = emptyMap()
+                            status = "${decks.size} deck(s) chargé(s), compteur indisponible"
+                        }
+                    }
                 }
                 is AnkiDroidResult.Failure -> status = result.message
             }
@@ -125,6 +137,9 @@ private fun AnkiWekkerApp(
                             when (val result = gateway.readDueCards(selectionToRead)) {
                                 is AnkiDroidResult.Success -> {
                                     snapshot = result.value
+                                    dueCountsByDeckId = result.value.decks.associate {
+                                        it.identifier to it.cardCount
+                                    }
                                     showDeckSelection = false
                                     status = "Lecture réussie"
                                 }
@@ -167,6 +182,7 @@ private fun AnkiWekkerApp(
                     )
                     DeckSelectionTree(
                         decks = decks,
+                        dueCountsByDeckId = dueCountsByDeckId,
                         selectedDeckIds = selectedDeckIds,
                         onSelectionChanged = { deckId, checked ->
                             selectedDeckIds = if (checked) {
@@ -178,6 +194,16 @@ private fun AnkiWekkerApp(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
+                    )
+                    val selectedDueTotal = if (selectedDeckIds.isEmpty()) {
+                        dueCountsByDeckId.values.sum()
+                    } else {
+                        selectedDeckIds.sumOf { dueCountsByDeckId[it] ?: 0 }
+                    }
+                    Text(
+                        text = "Cartes dues sélectionnées : $selectedDueTotal",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                     Button(
                         enabled = !loading,
@@ -253,18 +279,22 @@ private data class DeckTreeNode(
     val name: String,
     val path: String,
     val deck: AnkiDeck? = null,
+    val dueCount: Int = 0,
     val children: List<DeckTreeNode> = emptyList(),
 )
 
 @Composable
 private fun DeckSelectionTree(
     decks: List<AnkiDeck>,
+    dueCountsByDeckId: Map<String, Int>,
     selectedDeckIds: Set<String>,
     onSelectionChanged: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expandedPaths by remember { mutableStateOf(emptySet<String>()) }
-    val roots = remember(decks) { buildDeckTree(decks) }
+    val roots = remember(decks, dueCountsByDeckId) {
+        buildDeckTree(decks, dueCountsByDeckId)
+    }
 
     Column(modifier = modifier) {
         roots.forEach { node ->
@@ -327,7 +357,14 @@ private fun DeckTreeRow(
         Text(
             text = node.name,
             fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .weight(1f),
+        )
+        Text(
+            text = node.dueCount.toString(),
+            fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(end = 8.dp),
         )
     }
 
@@ -345,7 +382,10 @@ private fun DeckTreeRow(
     }
 }
 
-private fun buildDeckTree(decks: List<AnkiDeck>): List<DeckTreeNode> {
+private fun buildDeckTree(
+    decks: List<AnkiDeck>,
+    dueCountsByDeckId: Map<String, Int>,
+): List<DeckTreeNode> {
     class MutableNode(
         val name: String,
         val path: String,
@@ -369,11 +409,14 @@ private fun buildDeckTree(decks: List<AnkiDeck>): List<DeckTreeNode> {
     fun convert(nodes: Collection<MutableNode>): List<DeckTreeNode> = nodes
         .sortedBy { it.name }
         .map { node ->
+        val children = convert(node.children.values)
+        val ownDueCount = node.deck?.let { dueCountsByDeckId[it.identifier] ?: 0 } ?: 0
         DeckTreeNode(
             name = node.name,
             path = node.path,
             deck = node.deck,
-            children = convert(node.children.values),
+            dueCount = ownDueCount + children.sumOf { it.dueCount },
+            children = children,
         )
     }
 

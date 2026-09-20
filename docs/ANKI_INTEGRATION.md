@@ -50,6 +50,8 @@ L'écran diagnostic permet de charger les decks, de sélectionner un ou plusieur
 
 Les résultats sont classés selon la convention Anki des sous-decks (`Parent::Enfant`). Le total d'un deck parent inclut les cartes dues de ses descendants, tandis qu'un sous-deck est affiché avec une indentation visuelle.
 
+La vue de sélection recharge également le compteur global `is:due` et affiche le nombre dû à droite de chaque deck. Les nœuds parents affichent la somme de leurs cartes et de celles de leurs descendants ; le total « Cartes dues sélectionnées » est recalculé lors de chaque modification de sélection.
+
 Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
 
 ## Spike de preuve
