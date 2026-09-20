@@ -33,7 +33,7 @@ Persistence
   └── DataStore for alarms and preferences
 ```
 
-La première tranche d'alarme persiste une heure quotidienne dans `AlarmStore`, la programme avec `AlarmManager.setExactAndAllowWhileIdle` et reçoit l'événement dans `AlarmReceiver`. Le receiver lance `StudySessionService`, tente directement d'ouvrir AnkiDroid et conserve une notification haute priorité avec écran plein écran comme fallback. Le service relit le compteur ciblé toutes les 20 secondes. Il joue une sonnerie pendant 10 secondes seulement si le compteur n'a pas diminué depuis la lecture précédente, puis observe une fenêtre silencieuse de 10 secondes. Une baisse du compteur suffit donc à supprimer le cycle sonore suivant ; le service s'arrête à zéro ou lorsqu'une action d'arrêt explicite est utilisée.
+La première tranche d'alarme persiste une heure quotidienne dans `AlarmStore`, la programme avec `AlarmManager.setExactAndAllowWhileIdle` et reçoit l'événement dans `AlarmReceiver`. Le receiver lance `StudySessionService`, tente directement d'ouvrir AnkiDroid et conserve une notification haute priorité avec écran plein écran comme fallback. Avant tout progrès, le service relit le compteur ciblé toutes les 20 secondes et sonne par cycles de 10 secondes. Dès qu'une baisse est détectée, il passe en mode `StudyDetected` : vérification toutes les 5 secondes, silence si le compteur baisse, et sonnerie de 5 secondes dès qu'un contrôle constate une absence de progrès. Ce mode reste actif jusqu'à zéro ou lorsqu'une action d'arrêt explicite est utilisée.
 
 ## Source de vérité
 

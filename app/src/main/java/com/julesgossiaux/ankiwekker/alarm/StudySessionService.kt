@@ -60,6 +60,7 @@ class StudySessionService : Service() {
         val gateway = AnkiDroidGateway(applicationContext)
         val selectionStore = DeckSelectionStore(applicationContext)
         var lastDueCount: Int? = null
+        var studyDetected = false
 
         while (serviceScope.isActive) {
             val selectedDeckIds = selectionStore.readSelectedDeckIds()
@@ -72,9 +73,14 @@ class StudySessionService : Service() {
                         return
                     }
                     if (lastDueCount != null && currentDueCount < lastDueCount!!) {
+                        studyDetected = true
                         shouldSound = false
                         updateNotification(
-                            "Baisse détectée : $currentDueCount carte(s) due(s) restante(s)",
+                            "Étude détectée — $currentDueCount carte(s) restante(s)",
+                        )
+                    } else if (studyDetected) {
+                        updateNotification(
+                            "Aucune nouvelle carte depuis 5 secondes — relance",
                         )
                     } else {
                         updateNotification("$currentDueCount carte(s) due(s) restante(s)")
@@ -86,14 +92,16 @@ class StudySessionService : Service() {
                 }
             }
 
+            val pollInterval = if (studyDetected) STUDY_POLL_MILLIS else POLL_INTERVAL_MILLIS
+            val burstDuration = if (studyDetected) STUDY_BURST_MILLIS else ALARM_BURST_MILLIS
             if (shouldSound) {
                 playAlarmBurst()
-                delay(ALARM_BURST_MILLIS)
+                delay(burstDuration)
                 stopAlarmSound()
-                delay(POLL_INTERVAL_MILLIS - ALARM_BURST_MILLIS)
+                delay(pollInterval - burstDuration)
             } else {
                 stopAlarmSound()
-                delay(POLL_INTERVAL_MILLIS)
+                delay(pollInterval)
             }
         }
     }
@@ -170,6 +178,8 @@ class StudySessionService : Service() {
         private const val NOTIFICATION_ID = 2101
         private const val ALARM_BURST_MILLIS = 10_000L
         private const val POLL_INTERVAL_MILLIS = 20_000L
+        private const val STUDY_BURST_MILLIS = 5_000L
+        private const val STUDY_POLL_MILLIS = 5_000L
 
         fun stopIntent(context: Context): Intent =
             Intent(context, StudySessionService::class.java).setAction(ACTION_STOP)
