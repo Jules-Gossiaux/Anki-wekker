@@ -120,16 +120,22 @@ class StudySessionService : Service() {
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
-        alarmPlayer = MediaPlayer.create(this, alarmUri)?.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            isLooping = true
-            start()
-        }
+        alarmPlayer = runCatching {
+            // MediaPlayer.create() configures the player before its audio attributes can be
+            // applied. Build it explicitly so Android routes it to STREAM_ALARM, not music.
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                setDataSource(this@StudySessionService, alarmUri)
+                isLooping = true
+                prepare()
+                start()
+            }
+        }.getOrNull()
     }
 
     private fun stopAlarmSound() {

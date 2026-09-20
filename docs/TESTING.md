@@ -77,9 +77,10 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - pendant ce mode, vérifier qu'une nouvelle baisse maintient le silence et qu'une absence de baisse relance la sonnerie ;
 - quitter AnkiDroid avec des cartes restantes et vérifier que le service continue sa surveillance ;
 - ouvrir Anki-wekker pendant une session, le retirer des applications récentes, puis vérifier que la sonnerie et le suivi reprennent ;
-- après retrait de la tâche, vérifier que la reprise du cycle est quasi immédiate ; un léger retard OEM reste possible ;
+- après retrait de la tâche, relever le délai de reprise : OxygenOS peut tuer le processus de premier plan et différer sa recréation d'environ 45 secondes ;
 - vérifier que le processus d'alarme reste actif après fermeture de la tâche UI et ne produit plus une brève sonnerie suivie d'un arrêt ;
 - vérifier dans les logs qu'aucune `ForegroundServiceStartNotAllowedException` n'est levée après retrait de la tâche ;
+- baisser le volume pendant une sonnerie et vérifier que l'interface système indique le volume des alarmes, non le volume média ;
 - vérifier que l'arrêt forcé depuis les réglages Android interrompt bien la session (limite Android attendue) ;
 - tester une collection indisponible et vérifier que la session reste en état non complété ;
 - utiliser l'action « Arrêter » uniquement comme arrêt manuel de secours.
