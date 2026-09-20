@@ -21,6 +21,17 @@ class AlarmReceiver : BroadcastReceiver() {
             context,
             Intent(context, StudySessionService::class.java),
         )
+        context.packageManager.getLaunchIntentForPackage("com.ichi2.anki")?.let { ankiIntent ->
+            runCatching {
+                context.startActivity(
+                    ankiIntent.addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    ),
+                )
+            }
+        }
         val notificationManager = context.getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(
             NotificationChannel(

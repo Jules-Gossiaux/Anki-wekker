@@ -59,26 +59,42 @@ class StudySessionService : Service() {
     private suspend fun monitorSession() {
         val gateway = AnkiDroidGateway(applicationContext)
         val selectionStore = DeckSelectionStore(applicationContext)
+        var lastDueCount: Int? = null
 
         while (serviceScope.isActive) {
             val selectedDeckIds = selectionStore.readSelectedDeckIds()
+            var shouldSound = true
             when (val result = gateway.readDueCards(selectedDeckIds)) {
                 is AnkiDroidResult.Success -> {
-                    if (result.value.total == 0) {
+                    val currentDueCount = result.value.total
+                    if (currentDueCount == 0) {
                         stopSelf()
                         return
                     }
-                    updateNotification("${result.value.total} carte(s) due(s) restante(s)")
+                    if (lastDueCount != null && currentDueCount < lastDueCount!!) {
+                        shouldSound = false
+                        updateNotification(
+                            "Baisse détectée : $currentDueCount carte(s) due(s) restante(s)",
+                        )
+                    } else {
+                        updateNotification("$currentDueCount carte(s) due(s) restante(s)")
+                    }
+                    lastDueCount = currentDueCount
                 }
                 is AnkiDroidResult.Failure -> {
                     updateNotification("AnkiDroid indisponible — nouvelle tentative")
                 }
             }
 
-            playAlarmBurst()
-            delay(ALARM_BURST_MILLIS)
-            stopAlarmSound()
-            delay(POLL_INTERVAL_MILLIS - ALARM_BURST_MILLIS)
+            if (shouldSound) {
+                playAlarmBurst()
+                delay(ALARM_BURST_MILLIS)
+                stopAlarmSound()
+                delay(POLL_INTERVAL_MILLIS - ALARM_BURST_MILLIS)
+            } else {
+                stopAlarmSound()
+                delay(POLL_INTERVAL_MILLIS)
+            }
         }
     }
 

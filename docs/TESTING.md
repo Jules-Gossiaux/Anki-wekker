@@ -69,6 +69,8 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - déclencher une alarme avec au moins une carte due sélectionnée ;
 - vérifier que la sonnerie se coupe après environ 10 secondes puis revient si le compteur est toujours positif ;
 - répondre aux cartes dans AnkiDroid et vérifier l'arrêt automatique lorsque le compteur atteint zéro ;
+- répondre à quelques cartes sans atteindre zéro et vérifier que la sonnerie suivante est supprimée après la baisse du compteur ;
+- laisser le compteur inchangé et vérifier que la sonnerie revient au cycle suivant ;
 - quitter AnkiDroid avec des cartes restantes et vérifier que le service continue sa surveillance ;
 - tester une collection indisponible et vérifier que la session reste en état non complété ;
 - utiliser l'action « Arrêter » uniquement comme arrêt manuel de secours.
