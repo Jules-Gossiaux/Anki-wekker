@@ -3,6 +3,8 @@ package com.julesgossiaux.ankiwekker.alarm
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val notificationManager = context.getSystemService(NotificationManager::class.java)
+        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -23,6 +26,13 @@ class AlarmReceiver : BroadcastReceiver() {
             ).apply {
                 description = "Alarmes de révision AnkiDroid"
                 enableVibration(true)
+                setSound(
+                    alarmSound,
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
             },
         )
 
@@ -41,6 +51,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         } ?: contentIntent
+        val fullScreenIntent = PendingIntent.getActivity(
+            context,
+            1004,
+            Intent(context, AlarmActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
         notificationManager.notify(
             NOTIFICATION_ID,
@@ -50,6 +66,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 .setContentText("Tes cartes Anki dues t'attendent")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setFullScreenIntent(fullScreenIntent, true)
                 .setAutoCancel(true)
                 .setContentIntent(reviewIntent)
                 .addAction(0, "Ouvrir AnkiDroid", reviewIntent)
@@ -67,7 +84,7 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "anki_review_alarm"
+        private const val CHANNEL_ID = "anki_review_alarm_v2"
         private const val NOTIFICATION_ID = 2001
     }
 }

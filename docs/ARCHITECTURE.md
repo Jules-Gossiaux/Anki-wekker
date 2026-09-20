@@ -33,7 +33,7 @@ Persistence
   └── DataStore for alarms and preferences
 ```
 
-La première tranche d'alarme persiste une heure quotidienne dans `AlarmStore`, la programme avec `AlarmManager.setExactAndAllowWhileIdle` et reçoit l'événement dans `AlarmReceiver`. Le receiver crée une notification haute priorité avec une action vers AnkiDroid, puis reprogramme l'occurrence suivante. Le contrôle du compteur et le cycle sonore persistant restent dans la phase de session conditionnelle.
+La première tranche d'alarme persiste une heure quotidienne dans `AlarmStore`, la programme avec `AlarmManager.setExactAndAllowWhileIdle` et reçoit l'événement dans `AlarmReceiver`. Le receiver crée une notification haute priorité avec usage audio « alarme » et une intention plein écran vers `AlarmActivity`. Cette activité lance automatiquement AnkiDroid et joue la sonnerie en boucle jusqu'à l'action d'arrêt. Le contrôle du compteur et l'arrêt automatique à zéro restent dans la phase de session conditionnelle.
 
 ## Source de vérité
 
