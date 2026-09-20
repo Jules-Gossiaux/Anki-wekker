@@ -40,3 +40,12 @@
 - Ne pas travailler directement sur `main` pour une fonctionnalité ; utiliser une branche dédiée.
 - Ne pas utiliser de reset destructif ni de force-push.
 - Les commits doivent rester ciblés et explicites.
+- Toute feature, correction ou modification documentaire significative doit être développée sur une branche dédiée.
+- Utiliser des commits fréquents, atomiques et Conventional Commits ; un commit doit représenter une unité vérifiable.
+- Mettre à jour la documentation et les tests dans le même changement que le comportement concerné.
+- Ouvrir une Pull Request pour chaque feature ou modification significative avant intégration dans `main`.
+- Une PR doit expliquer le contexte, le comportement ajouté, les fichiers concernés, les tests exécutés, les limitations connues et les étapes de validation manuelle.
+- Ne pas fusionner une PR dont les tests pertinents, la revue du diff ou la validation appareil requise ne sont pas terminés.
+- Maintenir un suivi GitHub régulier : créer ou mettre à jour les issues, relier les PR aux issues et laisser les décisions importantes traçables dans les discussions ou la documentation.
+- Ne jamais pousser de secrets, de clés, de collections Anki, de logs contenant du contenu de cartes ou de fichiers locaux Android.
+- Si la création de PR n'est pas possible depuis l'environnement courant, laisser la branche et les commits prêts, puis signaler explicitement le blocage au lieu de prétendre qu'une PR existe.

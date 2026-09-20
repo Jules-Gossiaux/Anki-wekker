@@ -2,17 +2,17 @@
 
 ## Phase 0 — cadrage documentaire
 
-Créer la documentation, les règles de projet et le socle Git. **En cours.**
+Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 ## Phase 1 — spike AnkiDroid
 
-- créer un projet Android minimal ;
-- afficher les permissions et versions ;
-- découvrir les decks ;
-- calculer et afficher un compteur dû pour une sélection ;
-- ouvrir AnkiDroid ;
-- documenter les cas non accessibles ;
-- produire une validation sur le OnePlus 10 Pro.
+- créer un projet Android minimal ; **terminé**
+- afficher les permissions et versions ; **partiel**
+- découvrir les decks ; **partiel, valeurs `deck_id` du provider uniquement**
+- calculer et afficher un compteur dû pour une sélection ; **prototype global terminé**
+- ouvrir AnkiDroid ; **terminé**
+- documenter les cas non accessibles ; **terminé dans le contrat, validation appareil restante**
+- produire une validation sur le OnePlus 10 Pro. **à faire**
 
 ## Phase 2 — alarme minimale
 

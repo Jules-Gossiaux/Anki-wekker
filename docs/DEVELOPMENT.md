@@ -28,11 +28,13 @@ Le téléphone doit apparaître avec l'état `device`. Ne pas continuer si l'app
 ## Workflow
 
 1. Lire `rules.md` et la documentation pertinente.
-2. Vérifier `git status` et la branche.
+2. Vérifier `git status`, la branche et les issues/PRs associées.
 3. Implémenter une tranche réduite et testable.
-4. Installer sur le téléphone réel.
-5. Exécuter les tests ciblés et la validation manuelle.
-6. Mettre à jour la documentation et signaler les limites.
+4. Ajouter les tests et mettre à jour la documentation dans la même branche.
+5. Installer sur le téléphone réel.
+6. Exécuter les tests ciblés et la validation manuelle.
+7. Créer des commits atomiques, ouvrir une PR et y reporter les résultats.
+8. Mettre à jour l'issue et signaler les limites.
 
 ## Première tranche
 

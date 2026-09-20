@@ -48,3 +48,14 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 ## Critère de preuve
 
 Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil cible et consignation de la date, version Android/OxygenOS, permissions et résultat. Les limites OEM restent explicitement documentées.
+
+## Première tranche — validation à effectuer
+
+- ouvrir le projet dans Android Studio et synchroniser Gradle ;
+- installer l'APK de debug sur le OnePlus ;
+- vérifier l'autorisation AnkiDroid `READ_WRITE_DATABASE` ;
+- vérifier qu'un clic sur « Lire les cartes dues » retourne un état explicite ;
+- comparer le total avec les compteurs AnkiDroid pour un deck sans sous-deck puis avec une sélection multi-decks ;
+- vérifier le comportement avec zéro carte due, avec une carte due et après une réponse dans AnkiDroid ;
+- vérifier le bouton « Ouvrir AnkiDroid » ;
+- consigner la version d'AnkiDroid et tout écart dans cette section.
