@@ -16,6 +16,17 @@ adb devices
 
 Le téléphone doit apparaître avec l'état `device`. Ne pas continuer si l'appareil est `unauthorized`.
 
+## Compilation et installation
+
+Depuis PowerShell à la racine du projet :
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+adb install -r .\app\build\outputs\apk\debug\app-debug.apk
+```
+
+Android Studio utilise les mêmes fichiers Gradle, mais ces commandes permettent de reproduire le build sans dépendre de l'interface graphique.
+
 ## Stack prévue
 
 - Kotlin ;
