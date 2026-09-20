@@ -3,6 +3,7 @@ package com.julesgossiaux.ankiwekker.ankidroid
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,9 @@ sealed interface AnkiDroidResult<out T> {
 
 class AnkiDroidGateway(private val context: Context) {
     private val contentResolver: ContentResolver = context.contentResolver
+
+    fun hasDatabasePermission(): Boolean =
+        context.checkSelfPermission(READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
     fun isInstalled(): Boolean = runCatching {
         context.packageManager.getApplicationInfo(PACKAGE_NAME, 0)
@@ -93,6 +97,7 @@ class AnkiDroidGateway(private val context: Context) {
 
     companion object {
         const val PACKAGE_NAME = "com.ichi2.anki"
+        const val READ_WRITE_PERMISSION = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
         private const val AUTHORITY = "com.ichi2.anki.flashcards"
         private val CARDS_URI = Uri.parse("content://$AUTHORITY/cards")
         private const val CARD_ID = "_id"

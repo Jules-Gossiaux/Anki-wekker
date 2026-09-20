@@ -44,7 +44,7 @@ Le compteur est relu :
 
 ## Implémentation actuelle
 
-La première tranche contient `AnkiDroidGateway`. Elle utilise le provider `content://com.ichi2.anki.flashcards/cards`, la requête Anki `is:due`, et expose un diagnostic minimal dans l'application. Elle affiche les valeurs de `deck_id` retournées par AnkiDroid sans encore les persister ni les présenter comme des noms de decks confirmés.
+La première tranche contient `AnkiDroidGateway`. Elle utilise le provider `content://com.ichi2.anki.flashcards/cards`, la requête Anki `is:due`, et expose un diagnostic minimal dans l'application. Elle demande maintenant explicitement la permission Android dangereuse `com.ichi2.anki.permission.READ_WRITE_DATABASE` avant la lecture. Elle affiche les valeurs de `deck_id` retournées par AnkiDroid sans encore les persister ni les présenter comme des noms de decks confirmés.
 
 Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
 

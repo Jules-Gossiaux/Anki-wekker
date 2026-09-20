@@ -54,6 +54,7 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - ouvrir le projet dans Android Studio et synchroniser Gradle ;
 - installer l'APK de debug sur le OnePlus ;
 - vérifier l'autorisation AnkiDroid `READ_WRITE_DATABASE` ;
+- vérifier que le premier clic demande cette autorisation et que le second clic lit les cartes après acceptation ;
 - vérifier qu'un clic sur « Lire les cartes dues » retourne un état explicite ;
 - comparer le total avec les compteurs AnkiDroid pour un deck sans sous-deck puis avec une sélection multi-decks ;
 - vérifier le comportement avec zéro carte due, avec une carte due et après une réponse dans AnkiDroid ;

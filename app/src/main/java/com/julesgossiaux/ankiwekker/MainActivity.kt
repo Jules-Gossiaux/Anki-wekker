@@ -2,7 +2,9 @@ package com.julesgossiaux.ankiwekker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,15 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        status = if (granted) {
+            "Accès AnkiDroid accordé — clique à nouveau pour lire les cartes"
+        } else {
+            "Accès AnkiDroid refusé — autorise la permission pour continuer"
+        }
+    }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -60,6 +71,10 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
                 Button(
                     enabled = !loading,
                     onClick = {
+                        if (!gateway.hasDatabasePermission()) {
+                            permissionLauncher.launch(AnkiDroidGateway.READ_WRITE_PERMISSION)
+                            return@Button
+                        }
                         loading = true
                         status = "Lecture des cartes dues…"
                         scope.launch {
