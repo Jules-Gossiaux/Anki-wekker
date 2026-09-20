@@ -36,6 +36,12 @@ Si l'application ne peut pas confirmer l'état AnkiDroid, elle sonne pendant un 
 
 Le premier objectif est une installation locale sur le OnePlus 10 Pro. La publication Play Store, ses déclarations de permissions et une compatibilité multi-appareils sont reportées.
 
+## ADR-0007 — Résolution des noms de decks avec fallback
+
+**Statut :** accepté.
+
+AnkiDroid 2.24 expose un endpoint `decks/` côté provider qui n'est pas encore représenté de manière stable dans le contrat public consommé par le projet. L'application tente donc de résoudre les noms par colonnes candidates (`deck_id`/`id`/`_id` et `name`/`deck_name`) et conserve l'identifiant comme fallback. Aucun accès direct à la base AnkiDroid n'est ajouté.
+
 ## Questions ouvertes
 
 - Quelle version exacte d'AnkiDroid sera la version minimale supportée ?

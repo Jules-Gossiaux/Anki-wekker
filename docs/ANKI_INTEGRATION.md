@@ -42,6 +42,12 @@ Le compteur est relu :
 - deck supprimé ou renommé : signaler la sélection invalide et demander une correction.
 - synchronisation/collection verrouillée : réessayer selon une politique bornée.
 
+## Implémentation actuelle
+
+La première tranche contient `AnkiDroidGateway`. Elle utilise le provider `content://com.ichi2.anki.flashcards/cards`, la requête Anki `is:due`, et expose un diagnostic minimal dans l'application. Elle demande maintenant explicitement la permission Android dangereuse `com.ichi2.anki.permission.READ_WRITE_DATABASE` avant la lecture. Pour AnkiDroid 2.24+, elle tente aussi `content://com.ichi2.anki.flashcards/decks/` afin de convertir les identifiants en noms. Si cet endpoint est absent ou refuse la requête, les identifiants restent affichés comme fallback.
+
+Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
+
 ## Spike de preuve
 
 Le premier code doit contenir un écran diagnostic permettant d'afficher version d'AnkiDroid, decks découverts, sélection testée, compteur brut, compteur interprété et erreur éventuelle. Cette sortie facilitera la validation manuelle sans exposer le contenu des cartes.
