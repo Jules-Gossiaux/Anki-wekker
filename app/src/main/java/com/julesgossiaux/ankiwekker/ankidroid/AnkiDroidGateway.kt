@@ -49,6 +49,7 @@ class AnkiDroidGateway(private val context: Context) {
 
         try {
             val decks = mutableMapOf<String, Int>()
+            val deckNames = readDeckNames()
             val projection = arrayOf(
                 CARD_ID,
                 CARD_DECK_ID,
@@ -68,7 +69,8 @@ class AnkiDroidGateway(private val context: Context) {
                 }
 
                 while (cursor.moveToNext()) {
-                    val deck = cursor.textOrUnknown(CARD_DECK_ID)
+                    val deckId = cursor.textOrUnknown(CARD_DECK_ID)
+                    val deck = deckNames[deckId] ?: deckId
                     decks[deck] = (decks[deck] ?: 0) + 1
                 }
             }
@@ -90,6 +92,29 @@ class AnkiDroidGateway(private val context: Context) {
         }
     }
 
+    private fun readDeckNames(): Map<String, String> = runCatching {
+        val result = mutableMapOf<String, String>()
+        contentResolver.query(DECKS_URI, null, null, null, null).use { cursor ->
+            if (cursor == null) return@runCatching result
+
+            val idColumn = cursor.findColumn("deck_id", "id", "_id", "did")
+            val nameColumn = cursor.findColumn("name", "deck_name", "deckName")
+            if (idColumn == null || nameColumn == null) return@runCatching result
+
+            while (cursor.moveToNext()) {
+                val id = cursor.textOrUnknown(idColumn)
+                val name = cursor.textOrUnknown(nameColumn)
+                if (id != "Deck inconnu" && name != "Deck inconnu") {
+                    result[id] = name
+                }
+            }
+        }
+        result
+    }.getOrDefault(emptyMap())
+
+    private fun Cursor.findColumn(vararg candidates: String): String? =
+        candidates.firstOrNull { getColumnIndex(it) >= 0 }
+
     private fun Cursor.textOrUnknown(column: String): String {
         val index = getColumnIndex(column)
         return if (index >= 0 && !isNull(index)) getString(index) else "Deck inconnu"
@@ -100,6 +125,7 @@ class AnkiDroidGateway(private val context: Context) {
         const val READ_WRITE_PERMISSION = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
         private const val AUTHORITY = "com.ichi2.anki.flashcards"
         private val CARDS_URI = Uri.parse("content://$AUTHORITY/cards")
+        private val DECKS_URI = Uri.parse("content://$AUTHORITY/decks/")
         private const val CARD_ID = "_id"
         private const val CARD_DECK_ID = "deck_id"
         private const val CARD_QUEUE = "queue"
