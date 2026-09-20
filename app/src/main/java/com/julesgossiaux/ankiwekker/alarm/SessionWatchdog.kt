@@ -28,5 +28,5 @@ object SessionWatchdog {
     )
 
     private const val REQUEST_CODE = 2201
-    private const val RESTART_DELAY_MILLIS = 1_000L
+    private const val RESTART_DELAY_MILLIS = 10_000L
 }
