@@ -8,9 +8,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,25 +26,37 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
+import com.julesgossiaux.ankiwekker.ankidroid.AnkiDeck
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
 import com.julesgossiaux.ankiwekker.ankidroid.DueCardsSnapshot
+import com.julesgossiaux.ankiwekker.selection.DeckSelectionStore
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AnkiWekkerApp(AnkiDroidGateway(applicationContext))
+            AnkiWekkerApp(
+                gateway = AnkiDroidGateway(applicationContext),
+                selectionStore = DeckSelectionStore(applicationContext),
+            )
         }
     }
 }
 
 @Composable
-private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
+private fun AnkiWekkerApp(
+    gateway: AnkiDroidGateway,
+    selectionStore: DeckSelectionStore,
+) {
     var status by remember { mutableStateOf("Prêt à vérifier AnkiDroid") }
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
+    var decks by remember { mutableStateOf<List<AnkiDeck>>(emptyList()) }
+    var selectedDeckIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -53,13 +69,35 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
         }
     }
 
+    fun requestOrLoadDecks() {
+        if (!gateway.hasDatabasePermission()) {
+            permissionLauncher.launch(AnkiDroidGateway.READ_WRITE_PERMISSION)
+            return
+        }
+        loading = true
+        status = "Lecture des decks…"
+        showDeckSelection = true
+        snapshot = null
+        scope.launch {
+            selectedDeckIds = selectionStore.readSelectedDeckIds()
+            when (val result = gateway.listDecks()) {
+                is AnkiDroidResult.Success -> {
+                    decks = result.value
+                    status = "${decks.size} deck(s) chargé(s)"
+                }
+                is AnkiDroidResult.Failure -> status = result.message
+            }
+            loading = false
+        }
+    }
+
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text("Anki-wekker", style = MaterialTheme.typography.headlineMedium)
@@ -78,9 +116,10 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
                         loading = true
                         status = "Lecture des cartes dues…"
                         scope.launch {
-                            when (val result = gateway.readDueCards()) {
+                            when (val result = gateway.readDueCards(selectedDeckIds)) {
                                 is AnkiDroidResult.Success -> {
                                     snapshot = result.value
+                                    showDeckSelection = false
                                     status = "Lecture réussie"
                                 }
                                 is AnkiDroidResult.Failure -> {
@@ -96,6 +135,13 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
                     Text("Lire les cartes dues")
                 }
                 Button(
+                    enabled = !loading,
+                    onClick = ::requestOrLoadDecks,
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    Text("Sélectionner les decks")
+                }
+                Button(
                     onClick = {
                         status = if (gateway.openAnkiDroid()) {
                             "AnkiDroid ouvert"
@@ -106,6 +152,39 @@ private fun AnkiWekkerApp(gateway: AnkiDroidGateway) {
                     modifier = Modifier.padding(top = 8.dp),
                 ) {
                     Text("Ouvrir AnkiDroid")
+                }
+                if (showDeckSelection && decks.isNotEmpty()) {
+                    Text(
+                        text = "Sélection des decks (aucune sélection = tous)",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 24.dp),
+                    )
+                    DeckSelectionTree(
+                        decks = decks,
+                        selectedDeckIds = selectedDeckIds,
+                        onSelectionChanged = { deckId, checked ->
+                            selectedDeckIds = if (checked) {
+                                selectedDeckIds + deckId
+                            } else {
+                                selectedDeckIds - deckId
+                            }
+                            scope.launch {
+                                selectionStore.saveSelectedDeckIds(selectedDeckIds)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    )
+                    Button(
+                        onClick = {
+                            showDeckSelection = false
+                            status = "Sélection confirmée"
+                        },
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) {
+                        Text("Confirmer la sélection")
+                    }
                 }
                 snapshot?.let { DueSummary(it) }
             }
@@ -120,7 +199,173 @@ private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 24.dp),
     )
-    snapshot.decks.forEach { deck ->
-        Text("${deck.identifier} : ${deck.cardCount}")
+
+    val groupedDecks = snapshot.decks
+        .flatMap { deck ->
+            val parts = deck.name.split("::")
+            (1..parts.size).map { depth ->
+                parts.take(depth).joinToString("::") to deck.cardCount
+            }
+        }
+        .groupingBy { it.first }
+        .fold(0) { total, entry -> total + entry.second }
+        .toSortedMap()
+
+    groupedDecks.forEach { (name, count) ->
+        val level = name.count { it == ':' } / 2
+        Text(
+            text = "$name : $count",
+            fontWeight = if (level == 0) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(
+                start = (level * 20).dp,
+                top = 2.dp,
+            ),
+        )
     }
+}
+
+@Composable
+private fun DeckSelectionRow(
+    deck: AnkiDeck,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Text(deck.name, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+private data class DeckTreeNode(
+    val name: String,
+    val path: String,
+    val deck: AnkiDeck? = null,
+    val children: List<DeckTreeNode> = emptyList(),
+)
+
+@Composable
+private fun DeckSelectionTree(
+    decks: List<AnkiDeck>,
+    selectedDeckIds: Set<String>,
+    onSelectionChanged: (String, Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expandedPaths by remember { mutableStateOf(emptySet<String>()) }
+    val roots = remember(decks) { buildDeckTree(decks) }
+
+    Column(modifier = modifier) {
+        roots.forEach { node ->
+            DeckTreeRow(
+                node = node,
+                level = 0,
+                expandedPaths = expandedPaths,
+                onExpandToggle = { path ->
+                    expandedPaths = if (path in expandedPaths) {
+                        expandedPaths - path
+                    } else {
+                        expandedPaths + path
+                    }
+                },
+                selectedDeckIds = selectedDeckIds,
+                onSelectionChanged = onSelectionChanged,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeckTreeRow(
+    node: DeckTreeNode,
+    level: Int,
+    expandedPaths: Set<String>,
+    onExpandToggle: (String) -> Unit,
+    selectedDeckIds: Set<String>,
+    onSelectionChanged: (String, Boolean) -> Unit,
+) {
+    val hasChildren = node.children.isNotEmpty()
+    val expanded = node.path in expandedPaths
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = hasChildren) { onExpandToggle(node.path) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = when {
+                !hasChildren -> ""
+                expanded -> "⌄"
+                else -> "›"
+            },
+            modifier = Modifier
+                .padding(start = (level * 20).dp)
+                .fillMaxWidth(0.08f),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        node.deck?.let { deck ->
+            Checkbox(
+                checked = deck.identifier in selectedDeckIds,
+                onCheckedChange = { checked ->
+                    onSelectionChanged(deck.identifier, checked)
+                },
+            )
+        }
+        Text(
+            text = node.name,
+            fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+
+    if (expanded) {
+        node.children.forEach { child ->
+            DeckTreeRow(
+                node = child,
+                level = level + 1,
+                expandedPaths = expandedPaths,
+                onExpandToggle = onExpandToggle,
+                selectedDeckIds = selectedDeckIds,
+                onSelectionChanged = onSelectionChanged,
+            )
+        }
+    }
+}
+
+private fun buildDeckTree(decks: List<AnkiDeck>): List<DeckTreeNode> {
+    class MutableNode(
+        val name: String,
+        val path: String,
+        var deck: AnkiDeck? = null,
+        val children: MutableMap<String, MutableNode> = sortedMapOf(),
+    )
+
+    val roots = sortedMapOf<String, MutableNode>()
+    decks.forEach { deck ->
+        var currentChildren: MutableMap<String, MutableNode> = roots
+        val parts = deck.name.split("::")
+        var path = ""
+        parts.forEachIndexed { index, part ->
+            path = if (path.isEmpty()) part else "$path::$part"
+            val node = currentChildren.getOrPut(part) { MutableNode(part, path) }
+            if (index == parts.lastIndex) node.deck = deck
+            currentChildren = node.children
+        }
+    }
+
+    fun convert(nodes: Collection<MutableNode>): List<DeckTreeNode> = nodes
+        .sortedBy { it.name }
+        .map { node ->
+        DeckTreeNode(
+            name = node.name,
+            path = node.path,
+            deck = node.deck,
+            children = convert(node.children.values),
+        )
+    }
+
+    return convert(roots.values)
 }

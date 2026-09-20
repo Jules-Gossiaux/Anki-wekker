@@ -11,7 +11,13 @@ import kotlinx.coroutines.withContext
 
 data class AnkiDeckSnapshot(
     val identifier: String,
+    val name: String,
     val cardCount: Int,
+)
+
+data class AnkiDeck(
+    val identifier: String,
+    val name: String,
 )
 
 data class DueCardsSnapshot(
@@ -42,7 +48,23 @@ class AnkiDroidGateway(private val context: Context) {
         return true
     }
 
-    suspend fun readDueCards(): AnkiDroidResult<DueCardsSnapshot> = withContext(Dispatchers.IO) {
+    suspend fun listDecks(): AnkiDroidResult<List<AnkiDeck>> = withContext(Dispatchers.IO) {
+        if (!isInstalled()) {
+            return@withContext AnkiDroidResult.Failure("AnkiDroid n'est pas installé.")
+        }
+
+        try {
+            AnkiDroidResult.Success(readDecks())
+        } catch (error: SecurityException) {
+            AnkiDroidResult.Failure("Accès AnkiDroid refusé : ${error.message ?: "permission manquante"}")
+        } catch (error: IllegalStateException) {
+            AnkiDroidResult.Failure("La collection AnkiDroid n'est pas disponible : ${error.message ?: "état invalide"}")
+        } catch (error: RuntimeException) {
+            AnkiDroidResult.Failure("Erreur de lecture des decks : ${error.message ?: error.javaClass.simpleName}")
+        }
+    }
+
+    suspend fun readDueCards(selectedDeckIds: Set<String> = emptySet()): AnkiDroidResult<DueCardsSnapshot> = withContext(Dispatchers.IO) {
         if (!isInstalled()) {
             return@withContext AnkiDroidResult.Failure("AnkiDroid n'est pas installé.")
         }
@@ -70,8 +92,9 @@ class AnkiDroidGateway(private val context: Context) {
 
                 while (cursor.moveToNext()) {
                     val deckId = cursor.textOrUnknown(CARD_DECK_ID)
-                    val deck = deckNames[deckId] ?: deckId
-                    decks[deck] = (decks[deck] ?: 0) + 1
+                    if (selectedDeckIds.isEmpty() || deckId in selectedDeckIds) {
+                        decks[deckId] = (decks[deckId] ?: 0) + 1
+                    }
                 }
             }
 
@@ -80,7 +103,9 @@ class AnkiDroidGateway(private val context: Context) {
                     total = decks.values.sum(),
                     decks = decks.entries
                         .sortedBy { it.key }
-                        .map { AnkiDeckSnapshot(it.key, it.value) },
+                        .map { (id, count) ->
+                            AnkiDeckSnapshot(id, deckNames[id] ?: id, count)
+                        },
                 ),
             )
         } catch (error: SecurityException) {
@@ -91,6 +116,10 @@ class AnkiDroidGateway(private val context: Context) {
             AnkiDroidResult.Failure("Erreur de lecture AnkiDroid : ${error.message ?: error.javaClass.simpleName}")
         }
     }
+
+    private fun readDecks(): List<AnkiDeck> = readDeckNames()
+        .map { (identifier, name) -> AnkiDeck(identifier, name) }
+        .sortedBy { it.name }
 
     private fun readDeckNames(): Map<String, String> = runCatching {
         val result = mutableMapOf<String, String>()

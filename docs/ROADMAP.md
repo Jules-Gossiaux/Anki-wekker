@@ -8,11 +8,11 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 - créer un projet Android minimal ; **terminé**
 - afficher les permissions et versions ; **partiel**
-- découvrir les decks ; **partiel, valeurs `deck_id` du provider uniquement**
-- calculer et afficher un compteur dû pour une sélection ; **prototype global terminé**
+- découvrir les decks ; **prototype terminé, noms affichés avec fallback sur l'identifiant**
+- calculer et afficher un compteur dû pour une sélection ; **prototype terminé, sélection persistante**
 - ouvrir AnkiDroid ; **terminé**
 - documenter les cas non accessibles ; **terminé dans le contrat, validation appareil restante**
-- produire une validation sur le OnePlus 10 Pro. **à faire**
+- produire une validation sur le OnePlus 10 Pro. **en cours : APK installée, validation manuelle de la sélection à consigner**
 
 ## Phase 2 — alarme minimale
 
@@ -34,7 +34,7 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 - alarmes multiples ;
 - jours actifs ;
-- sélection persistante de decks ;
+- sélection persistante de decks avec confirmation explicite ; **prototype livré en Phase 1**
 - écran diagnostic ;
 - réglages audio, vibration et délais ;
 - tests manuels complets OxygenOS.
