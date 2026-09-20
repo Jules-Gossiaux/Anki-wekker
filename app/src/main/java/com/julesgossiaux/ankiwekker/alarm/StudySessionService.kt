@@ -49,6 +49,7 @@ class StudySessionService : Service() {
 
     override fun onDestroy() {
         stopAlarmSound()
+        getSystemService(NotificationManager::class.java).cancel(AlarmReceiver.NOTIFICATION_ID)
         serviceScope.cancel()
         super.onDestroy()
     }

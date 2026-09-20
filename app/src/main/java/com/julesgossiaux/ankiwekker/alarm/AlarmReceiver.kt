@@ -84,6 +84,6 @@ class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
         private const val CHANNEL_ID = "anki_review_alarm_v3"
-        private const val NOTIFICATION_ID = 2001
+        const val NOTIFICATION_ID = 2001
     }
 }
