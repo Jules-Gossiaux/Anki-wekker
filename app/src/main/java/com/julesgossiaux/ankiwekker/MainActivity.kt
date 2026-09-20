@@ -116,7 +116,13 @@ private fun AnkiWekkerApp(
                         loading = true
                         status = "Lecture des cartes dues…"
                         scope.launch {
-                            when (val result = gateway.readDueCards(selectedDeckIds)) {
+                            val selectionToRead = if (showDeckSelection) {
+                                selectedDeckIds
+                            } else {
+                                selectionStore.readSelectedDeckIds()
+                            }
+                            selectedDeckIds = selectionToRead
+                            when (val result = gateway.readDueCards(selectionToRead)) {
                                 is AnkiDroidResult.Success -> {
                                     snapshot = result.value
                                     showDeckSelection = false
@@ -168,18 +174,22 @@ private fun AnkiWekkerApp(
                             } else {
                                 selectedDeckIds - deckId
                             }
-                            scope.launch {
-                                selectionStore.saveSelectedDeckIds(selectedDeckIds)
-                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
                     )
                     Button(
+                        enabled = !loading,
                         onClick = {
-                            showDeckSelection = false
-                            status = "Sélection confirmée"
+                            loading = true
+                            status = "Enregistrement de la sélection…"
+                            scope.launch {
+                                selectionStore.saveSelectedDeckIds(selectedDeckIds)
+                                showDeckSelection = false
+                                status = "Sélection confirmée"
+                                loading = false
+                            }
                         },
                         modifier = Modifier.padding(top = 12.dp),
                     ) {
