@@ -46,6 +46,8 @@ Le compteur est relu :
 
 La première tranche contient `AnkiDroidGateway`. Elle utilise le provider `content://com.ichi2.anki.flashcards/cards`, la requête Anki `is:due`, et expose un diagnostic minimal dans l'application. Elle demande maintenant explicitement la permission Android dangereuse `com.ichi2.anki.permission.READ_WRITE_DATABASE` avant la lecture. Pour AnkiDroid 2.24+, elle tente aussi `content://com.ichi2.anki.flashcards/decks/` afin de convertir les identifiants en noms. Si cet endpoint est absent ou refuse la requête, les identifiants restent affichés comme fallback.
 
+L'écran diagnostic permet de charger les decks, de sélectionner un ou plusieurs identifiants et de mémoriser cette sélection localement avec DataStore. Une sélection vide signifie « tous les decks ». Le filtre est appliqué après la requête `is:due`, sans modifier la collection AnkiDroid.
+
 Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
 
 ## Spike de preuve

@@ -59,4 +59,8 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - comparer le total avec les compteurs AnkiDroid pour un deck sans sous-deck puis avec une sélection multi-decks ;
 - vérifier le comportement avec zéro carte due, avec une carte due et après une réponse dans AnkiDroid ;
 - vérifier le bouton « Ouvrir AnkiDroid » ;
+- appuyer sur « Charger les decks », vérifier les noms affichés et sélectionner un deck ;
+- vérifier que la lecture filtrée ignore les cartes dues des decks non sélectionnés ;
+- fermer puis rouvrir l'application et vérifier que la sélection est conservée ;
+- désélectionner tous les decks et vérifier que le mode « tous les decks » est rétabli ;
 - consigner la version d'AnkiDroid et tout écart dans cette section.
