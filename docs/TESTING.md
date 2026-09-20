@@ -61,6 +61,7 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - vérifier le bouton « Ouvrir AnkiDroid » ;
 - appuyer sur « Charger les decks », vérifier les noms affichés et sélectionner un deck ;
 - vérifier que la lecture filtrée ignore les cartes dues des decks non sélectionnés ;
+- vérifier que les résultats sont triés par nom, que les sous-decks sont indentés et que le parent agrège leurs cartes dues ;
 - fermer puis rouvrir l'application et vérifier que la sélection est conservée ;
 - désélectionner tous les decks et vérifier que le mode « tous les decks » est rétabli ;
 - consigner la version d'AnkiDroid et tout écart dans cette section.

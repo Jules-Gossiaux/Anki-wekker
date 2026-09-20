@@ -48,6 +48,8 @@ La première tranche contient `AnkiDroidGateway`. Elle utilise le provider `cont
 
 L'écran diagnostic permet de charger les decks, de sélectionner un ou plusieurs identifiants et de mémoriser cette sélection localement avec DataStore. Une sélection vide signifie « tous les decks ». Le filtre est appliqué après la requête `is:due`, sans modifier la collection AnkiDroid.
 
+Les résultats sont classés selon la convention Anki des sous-decks (`Parent::Enfant`). Le total d'un deck parent inclut les cartes dues de ses descendants, tandis qu'un sous-deck est affiché avec une indentation visuelle.
+
 Cette implémentation est une spike : elle doit être vérifiée sur le téléphone cible et avec plusieurs versions/états de collection avant d'être utilisée par le moteur d'alarme.
 
 ## Spike de preuve

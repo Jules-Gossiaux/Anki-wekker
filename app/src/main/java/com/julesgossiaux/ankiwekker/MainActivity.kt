@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDeck
@@ -192,8 +193,28 @@ private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 24.dp),
     )
-    snapshot.decks.forEach { deck ->
-        Text("${deck.name} : ${deck.cardCount}")
+
+    val groupedDecks = snapshot.decks
+        .flatMap { deck ->
+            val parts = deck.name.split("::")
+            (1..parts.size).map { depth ->
+                parts.take(depth).joinToString("::") to deck.cardCount
+            }
+        }
+        .groupingBy { it.first }
+        .fold(0) { total, entry -> total + entry.second }
+        .toSortedMap()
+
+    groupedDecks.forEach { (name, count) ->
+        val level = name.count { it == ':' } / 2
+        Text(
+            text = "$name : $count",
+            fontWeight = if (level == 0) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(
+                start = (level * 20).dp,
+                top = 2.dp,
+            ),
+        )
     }
 }
 
