@@ -60,6 +60,7 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - vérifier le comportement avec zéro carte due, avec une carte due et après une réponse dans AnkiDroid ;
 - vérifier le bouton « Ouvrir AnkiDroid » ;
 - appuyer sur « Sélectionner les decks », vérifier l'arborescence repliable et sélectionner un deck ;
+- appuyer sur « Confirmer la sélection » et vérifier que la vue se referme ;
 - lire les cartes dues puis rouvrir « Sélectionner les decks » et vérifier que la vue est de nouveau accessible ;
 - vérifier que la lecture filtrée ignore les cartes dues des decks non sélectionnés ;
 - vérifier que les résultats sont triés par nom, que les sous-decks sont indentés et que le parent agrège leurs cartes dues ;

@@ -176,6 +176,15 @@ private fun AnkiWekkerApp(
                             .fillMaxWidth()
                             .padding(top = 8.dp),
                     )
+                    Button(
+                        onClick = {
+                            showDeckSelection = false
+                            status = "Sélection confirmée"
+                        },
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) {
+                        Text("Confirmer la sélection")
+                    }
                 }
                 snapshot?.let { DueSummary(it) }
             }

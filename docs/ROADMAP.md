@@ -34,7 +34,7 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 - alarmes multiples ;
 - jours actifs ;
-- sélection persistante de decks ; **prototype livré en Phase 1**
+- sélection persistante de decks avec confirmation explicite ; **prototype livré en Phase 1**
 - écran diagnostic ;
 - réglages audio, vibration et délais ;
 - tests manuels complets OxygenOS.
