@@ -29,13 +29,14 @@ object SessionWatchdog {
         context.getSystemService(AlarmManager::class.java).cancel(pendingIntent(context))
     }
 
-    private fun pendingIntent(context: Context): PendingIntent = PendingIntent.getBroadcast(
+    private fun pendingIntent(context: Context): PendingIntent = PendingIntent.getForegroundService(
         context,
         REQUEST_CODE,
-        Intent(context, SessionWatchdogReceiver::class.java),
+        Intent(context, StudySessionService::class.java).setAction(ACTION_RESTART),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
     private const val REQUEST_CODE = 2201
     private const val RESTART_DELAY_MILLIS = 500L
+    private const val ACTION_RESTART = "com.julesgossiaux.ankiwekker.RESTART_SESSION"
 }

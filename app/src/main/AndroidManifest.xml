@@ -26,10 +26,6 @@
         <receiver
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
-        <receiver
-            android:name=".alarm.SessionWatchdogReceiver"
-            android:exported="false"
-            android:process=":alarm" />
         <activity
             android:name=".alarm.AlarmActivity"
             android:exported="false"
