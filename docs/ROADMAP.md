@@ -19,16 +19,16 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 - créer une alarme unique ; **prototype quotidien livré, heure persistée**
 - déclencher audio/vibration ; **sonnerie en boucle et notification haute priorité livrées**
-- ouvrir AnkiDroid ; **ouverture automatique via écran d'alerte livrée**
+- ouvrir AnkiDroid ; **tentatives d'ouverture implémentées, non validées sur appareil**
 - cycle borné et notification ; **notification et écran plein écran validés ; arrêt automatique sur compteur restant à implémenter**
 - restaurer l'alarme après redémarrage. **reprogrammation quotidienne livrée ; test après redémarrage à compléter**
 
 ## Phase 3 — session conditionnelle
 
-- relire le compteur ; **service de session avec polling toutes les 20 secondes**
+- relire le compteur ; **service de session : 10 secondes initialement, 5 secondes pendant l'étude**
 - arrêter à zéro ; **arrêt automatique implémenté**
 - relancer après inactivité ; **cycles de sonnerie de 10 secondes implémentés**
-- gérer sortie d'AnkiDroid ; **surveillance indépendante de l'activité implémentée ; validation OEM restante**
+- gérer sortie d'AnkiDroid ; **service persistant + watchdog au retrait de tâche implémentés ; validation OEM restante**
 - gérer indisponibilité et fallback. **notification d'état et nouvelles tentatives implémentées**
 
 ## Phase 4 — produit MVP
