@@ -15,7 +15,7 @@ UI Compose
 Application layer
   ├── Alarm scheduling
   ├── Study session coordinator
-  └── Permission coordinator
+  └── Permission coordinator / first-run onboarding
 
 Domain
   ├── Alarm
@@ -67,3 +67,5 @@ Chaque alarme est indépendante. Le planificateur calcule la prochaine occurrenc
 ## Sécurité et confidentialité
 
 Aucun contenu de carte, historique de révision ou identifiant externe ne quitte l'appareil. Les permissions sensibles sont expliquées dans l'interface. Les logs de diagnostic ne doivent pas contenir le contenu des cartes.
+
+Le premier écran après installation guide uniquement les autorisations nécessaires au MVP : accès AnkiDroid, notifications, alarmes exactes et affichage plein écran. Une autorisation refusée affiche un état de fonctionnement partiel et une action de nouvelle tentative depuis l'écran principal. Les réglages batterie, autolancement et OxygenOS restent documentés comme limites appareil, sans écran dédié dans l'application.
