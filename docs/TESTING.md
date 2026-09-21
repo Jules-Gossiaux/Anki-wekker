@@ -73,6 +73,13 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - statut : validation manuelle réussie pour cette tranche ;
 - reste à tester : redémarrage du téléphone, optimisation batterie et arrêt automatique après compteur à zéro.
 
+### Validation utilisateur — 2026-09-21
+
+- résultat rapporté : les alarmes multiples, les jours actifs, la sélection de decks par alarme et l'interface d'édition fonctionnent sur le téléphone cible ;
+- interface : affichage de l'heure locale sans suffixe GMT et éditeur intégré dans la carte de l'alarme ;
+- statut : fonctionnement confirmé pour l'usage courant ;
+- reste à tester explicitement : redémarrage du téléphone, changement de fuseau pendant une alarme et chevauchement de deux sessions réellement déclenchées.
+
 ## Session conditionnelle — validation à effectuer
 
 - déclencher une alarme avec au moins une carte due sélectionnée ;
