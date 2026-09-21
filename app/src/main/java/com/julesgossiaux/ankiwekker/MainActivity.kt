@@ -1,12 +1,9 @@
 package com.julesgossiaux.ankiwekker
 
 import android.app.TimePickerDialog
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,6 +47,7 @@ import com.julesgossiaux.ankiwekker.ankidroid.AnkiDeck
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
 import com.julesgossiaux.ankiwekker.ankidroid.DueCardsSnapshot
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -83,12 +81,8 @@ private fun AnkiWekkerApp(
     var dueCountsByDeckId by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var persistenceJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { }
-
     LaunchedEffect(Unit) {
         alarms = alarmStore.readAll()
         if (alarmScheduler.canScheduleExactAlarms()) alarmScheduler.scheduleAll(alarms)
@@ -103,11 +97,24 @@ private fun AnkiWekkerApp(
     fun persistAlarms(updated: List<AlarmSettings>, message: String) {
         alarms.filter { old -> updated.none { it.id == old.id } }.forEach(alarmScheduler::cancel)
         alarms = updated
-        scope.launch {
+        persistenceJob?.cancel()
+        persistenceJob = scope.launch {
             alarmStore.saveAll(updated)
             if (alarmScheduler.canScheduleExactAlarms()) alarmScheduler.scheduleAll(updated)
             status = message
         }
+    }
+
+    fun persistDraftChange(updated: AlarmSettings) {
+        if (draftAlarm == updated) return
+        draftAlarm = updated
+
+        val updatedAlarms = if (alarms.any { it.id == updated.id }) {
+            alarms.map { if (it.id == updated.id) updated else it }
+        } else {
+            alarms + updated
+        }
+        persistAlarms(updatedAlarms, "Modification enregistrée automatiquement")
     }
 
     fun openEditor(alarm: AlarmSettings) {
@@ -138,9 +145,9 @@ private fun AnkiWekkerApp(
                             status = "Decks chargés, compteur indisponible"
                         }
                     }
-                    draftAlarm = alarm.copy(
+                    persistDraftChange(alarm.copy(
                         selectedDeckIds = expandParentSelection(result.value, alarm.selectedDeckIds),
-                    )
+                    ))
                 }
                 is AnkiDroidResult.Failure -> status = result.message
             }
@@ -167,28 +174,6 @@ private fun AnkiWekkerApp(
                 }
             }
             loading = false
-        }
-    }
-
-    fun saveDraft(alarm: AlarmSettings) {
-        when {
-            alarm.activeDays.isEmpty() -> status = "Sélectionne au moins un jour actif"
-            !alarmScheduler.canScheduleExactAlarms() -> {
-                context.startActivity(alarmScheduler.exactAlarmSettingsIntent())
-                status = "Autorise les alarmes exactes puis réessaie"
-            }
-            else -> {
-                val updated = if (alarms.any { it.id == alarm.id }) {
-                    alarms.map { if (it.id == alarm.id) alarm else it }
-                } else {
-                    alarms + alarm
-                }
-                persistAlarms(updated, "Alarme enregistrée")
-                closeEditor()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                }
-            }
         }
     }
 
@@ -271,10 +256,9 @@ private fun AnkiWekkerApp(
                                     dueCountsByDeckId = dueCountsByDeckId,
                                     showDeckSelection = showDeckSelection,
                                     loading = loading,
-                                    onAlarmChange = { draftAlarm = it },
+                                    onAlarmChange = ::persistDraftChange,
                                     onLoadDecks = { loadDecks(currentDraft) },
                                     onReadDueCards = { readDueCards(currentDraft.selectedDeckIds) },
-                                    onConfirm = { saveDraft(currentDraft) },
                                     onCancel = ::closeEditor,
                                     modifier = Modifier.padding(top = 12.dp),
                                 )
@@ -294,10 +278,9 @@ private fun AnkiWekkerApp(
                             dueCountsByDeckId = dueCountsByDeckId,
                             showDeckSelection = showDeckSelection,
                             loading = loading,
-                            onAlarmChange = { draftAlarm = it },
+                            onAlarmChange = ::persistDraftChange,
                             onLoadDecks = { loadDecks(draftAlarm!!) },
                             onReadDueCards = { readDueCards(draftAlarm!!.selectedDeckIds) },
-                            onConfirm = { saveDraft(draftAlarm!!) },
                             onCancel = ::closeEditor,
                             modifier = Modifier.padding(16.dp),
                         )
@@ -414,7 +397,6 @@ private fun AlarmEditor(
     onAlarmChange: (AlarmSettings) -> Unit,
     onLoadDecks: () -> Unit,
     onReadDueCards: () -> Unit,
-    onConfirm: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -446,12 +428,14 @@ private fun AlarmEditor(
             DaySelector(
                 selectedDays = alarm.activeDays,
                 onDayToggle = { day ->
-                    onAlarmChange(alarm.copy(activeDays = toggleDay(alarm.activeDays, day)))
+                    if (canToggleDay(alarm.activeDays, day)) {
+                        onAlarmChange(alarm.copy(activeDays = toggleDay(alarm.activeDays, day)))
+                    }
                 },
                 modifier = Modifier.padding(top = 8.dp),
             )
             if (alarm.activeDays.isEmpty()) {
-                Text("Sélectionne au moins un jour pour enregistrer.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
+                Text("Sélectionne au moins un jour actif.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
             }
 
             Text("Decks AnkiDroid", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
@@ -477,9 +461,14 @@ private fun AlarmEditor(
                 )
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                Button(onClick = onConfirm, enabled = !loading && alarm.activeDays.isNotEmpty(), modifier = Modifier.weight(1f)) { Text("Enregistrer") }
+                Text(
+                    "Enregistrement automatique",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f).align(Alignment.CenterVertically),
+                )
                 Spacer(modifier = Modifier.size(8.dp))
-                TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Annuler") }
+                TextButton(onClick = onCancel) { Text("Fermer") }
             }
     }
 }
@@ -549,6 +538,9 @@ private val dayLabels = mapOf(
 
 private fun formatDays(days: Set<Int>): String =
     if (days.isEmpty()) "Aucun jour" else days.sorted().joinToString(" · ") { dayLabels.getValue(it).take(3) }
+
+internal fun canToggleDay(selectedDays: Set<Int>, day: Int): Boolean =
+    day !in selectedDays || selectedDays.size > 1
 
 internal fun toggleDay(selectedDays: Set<Int>, day: Int): Set<Int> =
     if (day in selectedDays) selectedDays - day else selectedDays + day
