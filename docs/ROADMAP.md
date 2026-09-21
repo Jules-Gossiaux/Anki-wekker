@@ -35,8 +35,9 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 - alarmes multiples ; **implémenté et validé sur appareil par retour utilisateur**
 - jours actifs ; **implémenté et validé sur appareil par retour utilisateur**
-- sélection persistante de decks avec confirmation explicite ; **par alarme implémentée et validée sur appareil par retour utilisateur**
+- sélection persistante de decks avec sauvegarde automatique ; **par alarme implémentée et validée sur appareil par retour utilisateur**
 - création, modification, suppression et affichage des alarmes ; **implémenté et validé sur appareil par retour utilisateur**
+- sauvegarde automatique des modifications d'heure, de jours, de decks et d'activation ; **implémentée**
 - calcul des prochaines occurrences, fuseaux horaires et DST ; **implémenté et testé localement**
 - fusion documentée des alarmes chevauchantes ; **implémentée et validée sur appareil par retour utilisateur**
 - restauration après redémarrage et changement de fuseau ; **implémentée localement, validation ciblée restante**

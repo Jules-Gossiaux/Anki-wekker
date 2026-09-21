@@ -60,6 +60,12 @@ Les alarmes simultanées partagent le même service de premier plan, la même no
 
 Une alarme conserve le fuseau IANA présent lors de sa création ou modification. Les occurrences sont recalculées avec `java.time` et les alarmes sont reprogrammées après un changement de fuseau ou d'heure système. Une heure locale située dans un trou DST est avancée par les règles Java du fuseau.
 
+## ADR-0011 — Sauvegarde automatique des alarmes
+
+**Statut :** accepté.
+
+Toute modification valide d'une alarme est persistée immédiatement, sans bouton « Enregistrer ». Cela s'applique à l'heure, aux jours actifs, aux decks et à l'activation. Une nouvelle alarme est créée lors de sa première modification ; si l'utilisateur ferme l'éditeur sans la modifier, elle n'est pas conservée. L'éditeur empêche de désélectionner le dernier jour actif afin de ne jamais persister une alarme non planifiable.
+
 ## Questions ouvertes
 
 - Quelle version exacte d'AnkiDroid sera la version minimale supportée ?

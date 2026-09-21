@@ -16,6 +16,9 @@ Les tests unitaires de `AlarmOccurrence` couvrent les jours actifs, le fuseau pr
 
 - création, modification, activation et désactivation d'alarmes ;
 - persistance après relance ;
+- sauvegarde automatique après changement de l'heure, des jours actifs, des decks et de l'activation ;
+- fermeture de l'éditeur après modification, puis réouverture avec les valeurs conservées ;
+- fermeture d'une nouvelle alarme avant toute modification, puis vérification qu'elle n'a pas été créée ;
 - restauration après redémarrage ;
 - notification et service au premier plan ;
 - permission d'alarme exacte et notification ;
@@ -120,8 +123,8 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - sélectionner un deck parent et vérifier que ses sous-decks sont également inclus dans le total ;
 - rouvrir une ancienne sélection contenant un parent et vérifier que ses sous-decks sont automatiquement repris ;
 - modifier la sélection et vérifier que « Cartes dues sélectionnées » est recalculé immédiatement ;
-- appuyer sur « Confirmer la sélection » et vérifier que la vue se referme ;
-- modifier la sélection, confirmer, puis cliquer sur « Lire les cartes dues » et vérifier que le total utilise immédiatement les nouveaux decks ;
+- modifier la sélection et vérifier qu'elle est enregistrée sans bouton de confirmation ;
+- cliquer sur « Lire les cartes dues » et vérifier que le total utilise immédiatement les nouveaux decks ;
 - lire les cartes dues puis rouvrir « Sélectionner les decks » et vérifier que la vue est de nouveau accessible ;
 - vérifier que la lecture filtrée ignore les cartes dues des decks non sélectionnés ;
 - vérifier que les résultats sont triés par nom, que les sous-decks sont indentés et que le parent agrège leurs cartes dues ;
