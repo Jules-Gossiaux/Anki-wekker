@@ -247,6 +247,7 @@ private fun AnkiWekkerApp(
                 }
 
                 alarms.forEach { alarm ->
+                    val draft = if (editingAlarmId == alarm.id) draftAlarm else null
                     AlarmCard(
                         alarm = alarm,
                         nextOccurrence = alarmScheduler.nextOccurrence(alarm),
@@ -262,40 +263,45 @@ private fun AnkiWekkerApp(
                             persistAlarms(alarms.filterNot { it.id == alarm.id }, "Alarme supprimée")
                         },
                         modifier = Modifier.padding(top = 12.dp),
+                        editor = draft?.let { currentDraft ->
+                            {
+                                AlarmEditor(
+                                    alarm = currentDraft,
+                                    decks = decks,
+                                    dueCountsByDeckId = dueCountsByDeckId,
+                                    showDeckSelection = showDeckSelection,
+                                    loading = loading,
+                                    onAlarmChange = { draftAlarm = it },
+                                    onLoadDecks = { loadDecks(currentDraft) },
+                                    onReadDueCards = { readDueCards(currentDraft.selectedDeckIds) },
+                                    onConfirm = { saveDraft(currentDraft) },
+                                    onCancel = ::closeEditor,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            }
+                        },
                     )
-                    if (editingAlarmId == alarm.id) {
-                        draftAlarm?.let { draft ->
-                            AlarmEditor(
-                                alarm = draft,
-                                decks = decks,
-                                dueCountsByDeckId = dueCountsByDeckId,
-                                showDeckSelection = showDeckSelection,
-                                loading = loading,
-                                onAlarmChange = { draftAlarm = it },
-                                onLoadDecks = { loadDecks(draft) },
-                                onReadDueCards = { readDueCards(draft.selectedDeckIds) },
-                                onConfirm = { saveDraft(draft) },
-                                onCancel = ::closeEditor,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                    }
                 }
 
                 if (draftAlarm != null && alarms.none { it.id == editingAlarmId }) {
-                    AlarmEditor(
-                        alarm = draftAlarm!!,
-                        decks = decks,
-                        dueCountsByDeckId = dueCountsByDeckId,
-                        showDeckSelection = showDeckSelection,
-                        loading = loading,
-                        onAlarmChange = { draftAlarm = it },
-                        onLoadDecks = { loadDecks(draftAlarm!!) },
-                        onReadDueCards = { readDueCards(draftAlarm!!.selectedDeckIds) },
-                        onConfirm = { saveDraft(draftAlarm!!) },
-                        onCancel = ::closeEditor,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        AlarmEditor(
+                            alarm = draftAlarm!!,
+                            decks = decks,
+                            dueCountsByDeckId = dueCountsByDeckId,
+                            showDeckSelection = showDeckSelection,
+                            loading = loading,
+                            onAlarmChange = { draftAlarm = it },
+                            onLoadDecks = { loadDecks(draftAlarm!!) },
+                            onReadDueCards = { readDueCards(draftAlarm!!.selectedDeckIds) },
+                            onConfirm = { saveDraft(draftAlarm!!) },
+                            onCancel = ::closeEditor,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
                 }
 
                 DiagnosticSection(
@@ -347,6 +353,7 @@ private fun AlarmCard(
     onToggle: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    editor: (@Composable () -> Unit)? = null,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -375,10 +382,15 @@ private fun AlarmCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Modifier") }
-                Spacer(modifier = Modifier.size(8.dp))
-                TextButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("Supprimer") }
+            if (editor == null) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Modifier") }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    TextButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("Supprimer") }
+                }
+            } else {
+                HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
+                editor()
             }
         }
     }
@@ -407,11 +419,7 @@ private fun AlarmEditor(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = modifier.fillMaxWidth()) {
             Text("Modifier l'alarme", style = MaterialTheme.typography.titleLarge)
             Text("Les changements seront appliqués à cette alarme uniquement.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
 
@@ -473,7 +481,6 @@ private fun AlarmEditor(
                 Spacer(modifier = Modifier.size(8.dp))
                 TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Annuler") }
             }
-        }
     }
 }
 
@@ -549,7 +556,7 @@ internal fun toggleDay(selectedDays: Set<Int>, day: Int): Set<Int> =
 private fun formatAlarmTime(hour: Int, minute: Int): String = "%02d:%02d".format(hour, minute)
 
 private fun formatOccurrence(value: ZonedDateTime?): String = value?.format(
-    DateTimeFormatter.ofPattern("EEE dd/MM à HH:mm z", Locale.getDefault()),
+    DateTimeFormatter.ofPattern("EEE dd/MM à HH:mm", Locale.getDefault()),
 ) ?: "Aucune occurrence"
 
 private data class DeckTreeNode(
