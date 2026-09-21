@@ -29,6 +29,7 @@ class StudySessionService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var monitorJob: Job? = null
     private var alarmPlayer: MediaPlayer? = null
+    private var sessionEnded = false
 
     override fun onCreate() {
         super.onCreate()
@@ -38,20 +39,28 @@ class StudySessionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            stopSelf()
+            endSession()
             return START_NOT_STICKY
         }
+        sessionEnded = false
+        serviceScope.launch { SessionStore(applicationContext).setActive(true) }
         if (monitorJob == null) {
             monitorJob = serviceScope.launch { monitorSession() }
         }
-        return START_STICKY
+        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
         stopAlarmSound()
         getSystemService(NotificationManager::class.java).cancel(AlarmReceiver.NOTIFICATION_ID)
+        if (!sessionEnded) SessionWatchdog.schedule(applicationContext)
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        SessionWatchdog.schedule(applicationContext)
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -69,7 +78,7 @@ class StudySessionService : Service() {
                 is AnkiDroidResult.Success -> {
                     val currentDueCount = result.value.total
                     if (currentDueCount == 0) {
-                        stopSelf()
+                        endSession()
                         return
                     }
                     if (lastDueCount != null && currentDueCount < lastDueCount!!) {
@@ -111,22 +120,39 @@ class StudySessionService : Service() {
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
-        alarmPlayer = MediaPlayer.create(this, alarmUri)?.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            isLooping = true
-            start()
-        }
+        alarmPlayer = runCatching {
+            // MediaPlayer.create() configures the player before its audio attributes can be
+            // applied. Build it explicitly so Android routes it to STREAM_ALARM, not music.
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                setDataSource(this@StudySessionService, alarmUri)
+                isLooping = true
+                prepare()
+                start()
+            }
+        }.getOrNull()
     }
 
     private fun stopAlarmSound() {
         alarmPlayer?.stopSafely()
         alarmPlayer?.release()
         alarmPlayer = null
+    }
+
+    private fun endSession() {
+        if (sessionEnded) return
+        sessionEnded = true
+        stopAlarmSound()
+        SessionWatchdog.cancel(applicationContext)
+        serviceScope.launch {
+            SessionStore(applicationContext).setActive(false)
+            stopSelf()
+        }
     }
 
     private fun updateNotification(text: String) {

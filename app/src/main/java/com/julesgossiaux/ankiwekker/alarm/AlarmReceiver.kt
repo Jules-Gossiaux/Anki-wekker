@@ -3,14 +3,13 @@ package com.julesgossiaux.ankiwekker.alarm
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.julesgossiaux.ankiwekker.MainActivity
+import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,7 +20,7 @@ class AlarmReceiver : BroadcastReceiver() {
             context,
             Intent(context, StudySessionService::class.java),
         )
-        context.packageManager.getLaunchIntentForPackage("com.ichi2.anki")?.let { ankiIntent ->
+        context.packageManager.getLaunchIntentForPackage(AnkiDroidGateway.PACKAGE_NAME)?.let { ankiIntent ->
             runCatching {
                 context.startActivity(
                     ankiIntent.addFlags(
@@ -51,7 +50,7 @@ class AlarmReceiver : BroadcastReceiver() {
             Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val ankiIntent = context.packageManager.getLaunchIntentForPackage("com.ichi2.anki")
+        val ankiIntent = context.packageManager.getLaunchIntentForPackage(AnkiDroidGateway.PACKAGE_NAME)
         val reviewIntent = ankiIntent?.let {
             PendingIntent.getActivity(
                 context,

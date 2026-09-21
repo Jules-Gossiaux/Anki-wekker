@@ -351,21 +351,6 @@ private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
     }
 }
 
-@Composable
-private fun DeckSelectionRow(
-    deck: AnkiDeck,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text(deck.name, modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
 private data class DeckTreeNode(
     val name: String,
     val path: String,
