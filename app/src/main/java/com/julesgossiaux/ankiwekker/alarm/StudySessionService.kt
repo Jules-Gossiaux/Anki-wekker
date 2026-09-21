@@ -15,7 +15,6 @@ import androidx.core.app.NotificationCompat
 import com.julesgossiaux.ankiwekker.MainActivity
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
-import com.julesgossiaux.ankiwekker.selection.DeckSelectionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,6 +26,7 @@ import kotlinx.coroutines.launch
 
 class StudySessionService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val activeAlarmIds = mutableSetOf<String>()
     private var monitorJob: Job? = null
     private var alarmPlayer: MediaPlayer? = null
     private var sessionEnded = false
@@ -42,10 +42,21 @@ class StudySessionService : Service() {
             endSession()
             return START_NOT_STICKY
         }
+
         sessionEnded = false
-        serviceScope.launch { SessionStore(applicationContext).setActive(true) }
-        if (monitorJob == null) {
-            monitorJob = serviceScope.launch { monitorSession() }
+        serviceScope.launch {
+            val sessionStore = SessionStore(applicationContext)
+            val persistedIds = sessionStore.readActiveAlarmIds()
+            val incomingId = intent?.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
+            val ids = when {
+                intent?.action == ACTION_RESTART -> persistedIds
+                incomingId != null -> persistedIds + incomingId
+                persistedIds.isNotEmpty() -> persistedIds
+                else -> AlarmStore(applicationContext).readAll().filter { it.enabled }.map { it.id }.toSet()
+            }
+            synchronized(activeAlarmIds) { activeAlarmIds.addAll(ids) }
+            sessionStore.saveActiveAlarmIds(activeAlarmIdsSnapshot())
+            startMonitorIfNeeded()
         }
         return START_REDELIVER_INTENT
     }
@@ -65,49 +76,83 @@ class StudySessionService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private suspend fun monitorSession() {
+    private fun startMonitorIfNeeded() {
+        if (monitorJob == null) {
+            monitorJob = serviceScope.launch { monitorSessions() }
+        }
+    }
+
+    private suspend fun monitorSessions() {
         val gateway = AnkiDroidGateway(applicationContext)
-        val selectionStore = DeckSelectionStore(applicationContext)
-        var lastDueCount: Int? = null
-        var studyDetected = false
+        val lastDueCounts = mutableMapOf<String, Int>()
+        val studyDetected = mutableSetOf<String>()
 
         while (serviceScope.isActive) {
-            val selectedDeckIds = selectionStore.readSelectedDeckIds()
-            var shouldSound = true
-            when (val result = gateway.readDueCards(selectedDeckIds)) {
-                is AnkiDroidResult.Success -> {
-                    val currentDueCount = result.value.total
-                    if (currentDueCount == 0) {
-                        endSession()
-                        return
+            val alarms = AlarmStore(applicationContext).readAll()
+                .associateBy { it.id }
+            val currentIds = activeAlarmIdsSnapshot().filter { it in alarms }.toSet()
+            synchronized(activeAlarmIds) {
+                activeAlarmIds.retainAll(currentIds)
+            }
+            if (currentIds.isEmpty()) {
+                endSession()
+                return
+            }
+
+            var shouldSound = false
+            var studying = false
+            var remainingSessions = 0
+            for (alarmId in currentIds) {
+                val alarm = alarms.getValue(alarmId)
+                when (val result = gateway.readDueCards(alarm.selectedDeckIds)) {
+                    is AnkiDroidResult.Success -> {
+                        val currentDueCount = result.value.total
+                        if (currentDueCount == 0) {
+                            synchronized(activeAlarmIds) { activeAlarmIds.remove(alarmId) }
+                            lastDueCounts.remove(alarmId)
+                            studyDetected.remove(alarmId)
+                            continue
+                        }
+                        remainingSessions++
+                        val previous = lastDueCounts[alarmId]
+                        if (previous != null && currentDueCount < previous) {
+                            studyDetected += alarmId
+                        }
+                        if (studyDetected.contains(alarmId)) {
+                            studying = true
+                            if (previous == currentDueCount) shouldSound = true
+                        } else {
+                            shouldSound = true
+                        }
+                        lastDueCounts[alarmId] = currentDueCount
                     }
-                    if (lastDueCount != null && currentDueCount < lastDueCount!!) {
-                        studyDetected = true
-                        shouldSound = false
-                        updateNotification(
-                            "Étude détectée — $currentDueCount carte(s) restante(s)",
-                        )
-                    } else if (studyDetected) {
-                        updateNotification(
-                            "Aucune nouvelle carte depuis 5 secondes — relance",
-                        )
-                    } else {
-                        updateNotification("$currentDueCount carte(s) due(s) restante(s)")
+                    is AnkiDroidResult.Failure -> {
+                        remainingSessions++
+                        shouldSound = true
                     }
-                    lastDueCount = currentDueCount
-                }
-                is AnkiDroidResult.Failure -> {
-                    updateNotification("AnkiDroid indisponible — nouvelle tentative")
                 }
             }
 
-            val pollInterval = if (studyDetected) STUDY_POLL_MILLIS else POLL_INTERVAL_MILLIS
-            val burstDuration = if (studyDetected) STUDY_BURST_MILLIS else ALARM_BURST_MILLIS
+            SessionStore(applicationContext).saveActiveAlarmIds(activeAlarmIdsSnapshot())
+            if (remainingSessions == 0 || activeAlarmIdsSnapshot().isEmpty()) {
+                endSession()
+                return
+            }
+
+            updateNotification(
+                if (studying) {
+                    "$remainingSessions session(s) — étude en cours"
+                } else {
+                    "$remainingSessions session(s) — cartes dues restantes"
+                },
+            )
+            val pollInterval = if (studying) STUDY_POLL_MILLIS else POLL_INTERVAL_MILLIS
+            val burstDuration = if (studying) STUDY_BURST_MILLIS else ALARM_BURST_MILLIS
             if (shouldSound) {
                 playAlarmBurst()
                 delay(burstDuration)
                 stopAlarmSound()
-                delay(pollInterval - burstDuration)
+                delay((pollInterval - burstDuration).coerceAtLeast(0))
             } else {
                 stopAlarmSound()
                 delay(pollInterval)
@@ -121,8 +166,6 @@ class StudySessionService : Service() {
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
         alarmPlayer = runCatching {
-            // MediaPlayer.create() configures the player before its audio attributes can be
-            // applied. Build it explicitly so Android routes it to STREAM_ALARM, not music.
             MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -139,8 +182,10 @@ class StudySessionService : Service() {
     }
 
     private fun stopAlarmSound() {
-        alarmPlayer?.stopSafely()
-        alarmPlayer?.release()
+        alarmPlayer?.let { player ->
+            runCatching { if (player.isPlaying) player.stop() }
+            player.release()
+        }
         alarmPlayer = null
     }
 
@@ -148,12 +193,15 @@ class StudySessionService : Service() {
         if (sessionEnded) return
         sessionEnded = true
         stopAlarmSound()
+        synchronized(activeAlarmIds) { activeAlarmIds.clear() }
         SessionWatchdog.cancel(applicationContext)
         serviceScope.launch {
-            SessionStore(applicationContext).setActive(false)
+            SessionStore(applicationContext).saveActiveAlarmIds(emptySet())
             stopSelf()
         }
     }
+
+    private fun activeAlarmIdsSnapshot(): Set<String> = synchronized(activeAlarmIds) { activeAlarmIds.toSet() }
 
     private fun updateNotification(text: String) {
         getSystemService(NotificationManager::class.java)
@@ -194,12 +242,9 @@ class StudySessionService : Service() {
         )
     }
 
-    private fun MediaPlayer.stopSafely() {
-        if (isPlaying) stop()
-    }
-
     companion object {
         private const val ACTION_STOP = "com.julesgossiaux.ankiwekker.STOP_SESSION"
+        private const val ACTION_RESTART = "com.julesgossiaux.ankiwekker.RESTART_SESSION"
         private const val SESSION_CHANNEL_ID = "anki_review_session"
         private const val NOTIFICATION_ID = 2101
         private const val ALARM_BURST_MILLIS = 10_000L
@@ -209,5 +254,8 @@ class StudySessionService : Service() {
 
         fun stopIntent(context: Context): Intent =
             Intent(context, StudySessionService::class.java).setAction(ACTION_STOP)
+
+        fun restartIntent(context: Context): Intent =
+            Intent(context, StudySessionService::class.java).setAction(ACTION_RESTART)
     }
 }

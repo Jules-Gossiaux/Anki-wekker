@@ -1,5 +1,7 @@
 # Tests
 
+Les tests unitaires de `AlarmOccurrence` couvrent les jours actifs, le fuseau propre à l'alarme et le passage dans un trou DST. Les tests d'intégration Android et la validation sur le OnePlus restent nécessaires pour confirmer `AlarmManager`, les permissions exactes et les alarmes simultanées.
+
 ## Unitaires
 
 - calcul de la prochaine occurrence d'une alarme ;
@@ -44,6 +46,12 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - mode silencieux et volume d'alarme ;
 - absence de cartes dues ;
 - plusieurs alarmes à des heures différentes.
+- plusieurs alarmes à la même heure avec des sélections différentes ;
+- modification et suppression d'une alarme sans modifier les autres ;
+- redémarrage après migration depuis l'ancienne alarme unique ;
+- changement de fuseau et de date/heure système ;
+- alarme configurée sur un jour inactif ou sans jour ;
+- alarme située dans une transition DST.
 
 ## Première alarme — validation à effectuer
 
@@ -64,6 +72,13 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - résultat : alarme déclenchée, sonnerie fonctionnelle, AnkiDroid ouvert automatiquement ;
 - statut : validation manuelle réussie pour cette tranche ;
 - reste à tester : redémarrage du téléphone, optimisation batterie et arrêt automatique après compteur à zéro.
+
+### Validation utilisateur — 2026-09-21
+
+- résultat rapporté : les alarmes multiples, les jours actifs, la sélection de decks par alarme et l'interface d'édition fonctionnent sur le téléphone cible ;
+- interface : affichage de l'heure locale sans suffixe GMT et éditeur intégré dans la carte de l'alarme ;
+- statut : fonctionnement confirmé pour l'usage courant ;
+- reste à tester explicitement : redémarrage du téléphone, changement de fuseau pendant une alarme et chevauchement de deux sessions réellement déclenchées.
 
 ## Session conditionnelle — validation à effectuer
 
