@@ -28,7 +28,7 @@ Le téléphone éteint est une limite matérielle : aucune application ne peut j
 
 ## OxygenOS 16 / OnePlus
 
-Le test réel doit couvrir l'optimisation batterie, le démarrage automatique, le verrouillage, la mise en veille, le redémarrage et le force-stop. L'application doit afficher un diagnostic indiquant clairement quelles permissions ou exceptions système manquent.
+Le test réel doit couvrir l'optimisation batterie, le démarrage automatique, le verrouillage, la mise en veille, le redémarrage et le force-stop. L'application guide les permissions nécessaires au MVP et indique clairement lorsqu'une autorisation manque ; les réglages batterie et exceptions OEM restent des limites documentées plutôt qu'une fonctionnalité dédiée.
 
 ## Détection de sortie d'AnkiDroid
 

@@ -7,7 +7,7 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 ## Phase 1 — spike AnkiDroid
 
 - créer un projet Android minimal ; **terminé**
-- afficher les permissions et versions ; **partiel**
+- afficher les permissions et versions ; **parcours des permissions MVP implémenté, affichage de version restant hors de cette tranche**
 - découvrir les decks ; **prototype terminé, noms affichés avec fallback sur l'identifiant**
 - calculer et afficher un compteur dû pour une sélection ; **prototype terminé, sélection persistante**
 - ouvrir AnkiDroid ; **terminé**

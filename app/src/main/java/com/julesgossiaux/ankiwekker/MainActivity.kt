@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.julesgossiaux.ankiwekker.alarm.AlarmScheduler
 import com.julesgossiaux.ankiwekker.alarm.AlarmSettings
 import com.julesgossiaux.ankiwekker.alarm.AlarmStore
@@ -50,7 +52,12 @@ import com.julesgossiaux.ankiwekker.ankidroid.AnkiDeck
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
 import com.julesgossiaux.ankiwekker.ankidroid.DueCardsSnapshot
+import com.julesgossiaux.ankiwekker.permissions.PermissionCoordinator
+import com.julesgossiaux.ankiwekker.permissions.PermissionOnboardingStore
+import com.julesgossiaux.ankiwekker.permissions.PermissionState
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -83,15 +90,60 @@ private fun AnkiWekkerApp(
     var dueCountsByDeckId by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var showDeckSelection by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var permissionState by remember { mutableStateOf<PermissionState?>(null) }
+    var onboardingSeen by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val permissionCoordinator = remember { PermissionCoordinator(context) }
+    val onboardingStore = remember { PermissionOnboardingStore(context) }
+    fun refreshPermissions() {
+        val state = permissionCoordinator.readState()
+        permissionState = state
+        if (state.allGranted) {
+            scope.launch {
+                onboardingStore.markSeen()
+                onboardingSeen = true
+            }
+        }
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-    ) { }
+    ) { refreshPermissions() }
+    val ankiPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { refreshPermissions() }
 
     LaunchedEffect(Unit) {
+        onboardingSeen = onboardingStore.hasBeenSeen()
+        refreshPermissions()
         alarms = alarmStore.readAll()
         if (alarmScheduler.canScheduleExactAlarms()) alarmScheduler.scheduleAll(alarms)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshPermissions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    fun continuePermissionSetup() {
+        val state = permissionState ?: return
+        scope.launch {
+            onboardingStore.markSeen()
+            onboardingSeen = true
+        }
+        when {
+            !state.ankiDroid -> ankiPermissionLauncher.launch(AnkiDroidGateway.READ_WRITE_PERMISSION)
+            !state.notifications -> notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            !state.exactAlarms -> context.startActivity(permissionCoordinator.exactAlarmSettingsIntent())
+            !state.fullScreen -> context.startActivity(permissionCoordinator.fullScreenSettingsIntent())
+            else -> status = "Toutes les autorisations nécessaires sont accordées"
+        }
     }
 
     fun closeEditor() {
@@ -216,6 +268,16 @@ private fun AnkiWekkerApp(
                 )
 
                 StatusCard(status = status, modifier = Modifier.padding(top = 20.dp))
+                permissionState?.let { state ->
+                    if (!onboardingSeen || !state.allGranted) {
+                        PermissionSetupCard(
+                            state = state,
+                            firstLaunch = !onboardingSeen,
+                            onContinue = ::continuePermissionSetup,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier
@@ -328,6 +390,92 @@ private fun StatusCard(status: String, modifier: Modifier = Modifier) {
             Text("État", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
             Text(status, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 4.dp))
         }
+    }
+}
+
+@Composable
+private fun PermissionSetupCard(
+    state: PermissionState,
+    firstLaunch: Boolean,
+    onContinue: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val missing = !state.allGranted
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (missing) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.primaryContainer
+            },
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                if (firstLaunch) "Préparons l'application" else "Fonctionnement partiel",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                if (missing) {
+                    "Sans toutes les autorisations, l'application ne pourra pas fonctionner pleinement."
+                } else {
+                    "Toutes les autorisations nécessaires sont accordées."
+                },
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            PermissionStatusRow(
+                label = "Accès AnkiDroid",
+                granted = state.ankiDroid,
+                impact = "Lecture des decks et cartes dues",
+            )
+            PermissionStatusRow(
+                label = "Notifications",
+                granted = state.notifications,
+                impact = "Suivi de la session et alertes",
+            )
+            PermissionStatusRow(
+                label = "Alarmes exactes",
+                granted = state.exactAlarms,
+                impact = "Déclenchement précis des alarmes",
+            )
+            PermissionStatusRow(
+                label = "Affichage plein écran",
+                granted = state.fullScreen,
+                impact = "Ouverture immédiate de l'alerte",
+            )
+            Button(
+                onClick = onContinue,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            ) {
+                Text(if (missing) "Autoriser ou réessayer" else "Continuer")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionStatusRow(label: String, granted: Boolean, impact: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (granted) "✓" else "!",
+            color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(end = 10.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontWeight = FontWeight.Medium)
+            Text(impact, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(
+            if (granted) "OK" else "À faire",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
     }
 }
 

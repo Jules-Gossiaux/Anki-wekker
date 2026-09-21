@@ -11,6 +11,8 @@ Les tests unitaires de `AlarmOccurrence` couvrent les jours actifs, le fuseau pr
 - sélection de decks et inclusion des sous-decks ;
 - distinction `Completed` / `Unavailable` ;
 - fusion ou non de sessions concurrentes.
+- état global des permissions et fonctionnement partiel lorsqu'une autorisation manque ;
+- parcours de première ouverture et nouvelle tentative depuis l'écran principal.
 
 ## Intégration Android
 
@@ -109,6 +111,9 @@ Une fonctionnalité native n'est déclarée fiable qu'après test sur l'appareil
 - ouvrir le projet dans Android Studio et synchroniser Gradle ;
 - installer l'APK de debug sur le OnePlus ;
 - vérifier l'autorisation AnkiDroid `READ_WRITE_DATABASE` ;
+- installer l'application avec des données vierges et vérifier que le parcours de première ouverture présente les quatre autorisations nécessaires ;
+- refuser une autorisation et vérifier que le message « fonctionnement partiel » indique l'impact et permet une nouvelle tentative ;
+- accorder les autorisations une par une et vérifier que l'état se rafraîchit au retour des réglages système ;
 - vérifier que le premier clic demande cette autorisation et que le second clic lit les cartes après acceptation ;
 - vérifier qu'un clic sur « Lire les cartes dues » retourne un état explicite ;
 - comparer le total avec les compteurs AnkiDroid pour un deck sans sous-deck puis avec une sélection multi-decks ;
