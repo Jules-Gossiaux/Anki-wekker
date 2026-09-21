@@ -46,14 +46,13 @@ class StudySessionService : Service() {
         sessionEnded = false
         serviceScope.launch {
             val sessionStore = SessionStore(applicationContext)
+            val persistedIds = sessionStore.readActiveAlarmIds()
+            val incomingId = intent?.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
             val ids = when {
-                intent?.action == ACTION_RESTART -> sessionStore.readActiveAlarmIds()
-                intent?.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID) != null -> setOf(
-                    intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)!!,
-                )
-                else -> sessionStore.readActiveAlarmIds().ifEmpty {
-                    AlarmStore(applicationContext).readAll().filter { it.enabled }.map { it.id }.toSet()
-                }
+                intent?.action == ACTION_RESTART -> persistedIds
+                incomingId != null -> persistedIds + incomingId
+                persistedIds.isNotEmpty() -> persistedIds
+                else -> AlarmStore(applicationContext).readAll().filter { it.enabled }.map { it.id }.toSet()
             }
             synchronized(activeAlarmIds) { activeAlarmIds.addAll(ids) }
             sessionStore.saveActiveAlarmIds(activeAlarmIdsSnapshot())
