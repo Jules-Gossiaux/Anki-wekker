@@ -32,11 +32,10 @@ object SessionWatchdog {
     private fun pendingIntent(context: Context): PendingIntent = PendingIntent.getForegroundService(
         context,
         REQUEST_CODE,
-        Intent(context, StudySessionService::class.java).setAction(ACTION_RESTART),
+        StudySessionService.restartIntent(context),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
     private const val REQUEST_CODE = 2201
     private const val RESTART_DELAY_MILLIS = 500L
-    private const val ACTION_RESTART = "com.julesgossiaux.ankiwekker.RESTART_SESSION"
 }

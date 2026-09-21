@@ -4,8 +4,10 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
-import java.util.Calendar
+import java.time.Clock
+import java.time.ZonedDateTime
 
 class AlarmScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
@@ -16,39 +18,56 @@ class AlarmScheduler(private val context: Context) {
 
     fun exactAlarmSettingsIntent(): Intent =
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
+            data = Uri.parse("package:${context.packageName}")
         }
 
-    fun scheduleDaily(hour: Int, minute: Int) {
+    fun scheduleAll(alarms: List<AlarmSettings>, clock: Clock = Clock.systemUTC()) {
         if (!canScheduleExactAlarms()) return
-
-        val next = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+        alarmManager.cancel(legacyPendingIntent())
+        alarms.forEach { alarm ->
+            if (alarm.enabled) scheduleNext(alarm, clock) else cancel(alarm)
         }
+    }
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            next.timeInMillis,
-            pendingIntent(),
+    fun scheduleNext(alarm: AlarmSettings, clock: Clock = Clock.systemUTC()) {
+        if (!canScheduleExactAlarms() || !alarm.enabled) return
+        nextOccurrence(alarm, clock)?.let { occurrence ->
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                occurrence.toInstant().toEpochMilli(),
+                pendingIntent(alarm.id),
+            )
+        }
+    }
+
+    fun cancel(alarm: AlarmSettings) {
+        alarmManager.cancel(pendingIntent(alarm.id))
+    }
+
+    fun nextOccurrence(alarm: AlarmSettings, clock: Clock = Clock.systemUTC()): ZonedDateTime? {
+        return AlarmOccurrence.next(alarm, clock)
+    }
+
+    private fun pendingIntent(alarmId: String): PendingIntent {
+        val intent = Intent(context, AlarmReceiver::class.java)
+            .setData(Uri.parse("ankiwekker://alarm/$alarmId"))
+            .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+        return PendingIntent.getBroadcast(
+            context,
+            alarmId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
-    fun cancel() {
-        alarmManager.cancel(pendingIntent())
-    }
-
-    private fun pendingIntent(): PendingIntent = PendingIntent.getBroadcast(
+    private fun legacyPendingIntent(): PendingIntent = PendingIntent.getBroadcast(
         context,
-        REQUEST_CODE,
+        LEGACY_REQUEST_CODE,
         Intent(context, AlarmReceiver::class.java),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
     companion object {
-        private const val REQUEST_CODE = 1001
+        private const val LEGACY_REQUEST_CODE = 1001
     }
 }

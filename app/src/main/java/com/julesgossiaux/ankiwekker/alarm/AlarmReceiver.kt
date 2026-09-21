@@ -16,9 +16,12 @@ import kotlinx.coroutines.launch
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        val alarmId = intent?.getStringExtra(EXTRA_ALARM_ID)
         ContextCompat.startForegroundService(
             context,
-            Intent(context, StudySessionService::class.java),
+            Intent(context, StudySessionService::class.java).apply {
+                alarmId?.let { putExtra(EXTRA_ALARM_ID, it) }
+            },
         )
         context.packageManager.getLaunchIntentForPackage(AnkiDroidGateway.PACKAGE_NAME)?.let { ankiIntent ->
             runCatching {
@@ -90,10 +93,10 @@ class AlarmReceiver : BroadcastReceiver() {
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            val settings = AlarmStore(context).read()
-            if (settings.enabled) {
-                AlarmScheduler(context).scheduleDaily(settings.hour, settings.minute)
-            }
+            val alarms = AlarmStore(context).readAll()
+            val selectedAlarm = alarmId?.let { id -> alarms.firstOrNull { it.id == id } }
+                ?: alarms.firstOrNull { it.enabled }
+            selectedAlarm?.let { AlarmScheduler(context).scheduleNext(it) }
             pendingResult.finish()
         }
     }
@@ -101,5 +104,6 @@ class AlarmReceiver : BroadcastReceiver() {
     companion object {
         private const val CHANNEL_ID = "anki_review_alarm_v3"
         const val NOTIFICATION_ID = 2001
+        const val EXTRA_ALARM_ID = "alarm_id"
     }
 }

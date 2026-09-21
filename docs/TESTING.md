@@ -1,5 +1,7 @@
 # Tests
 
+Les tests unitaires de `AlarmOccurrence` couvrent les jours actifs, le fuseau propre à l'alarme et le passage dans un trou DST. Les tests d'intégration Android et la validation sur le OnePlus restent nécessaires pour confirmer `AlarmManager`, les permissions exactes et les alarmes simultanées.
+
 ## Unitaires
 
 - calcul de la prochaine occurrence d'une alarme ;
@@ -44,6 +46,12 @@ Chaque cas doit être testé sur le OnePlus 10 Pro sous OxygenOS 16 :
 - mode silencieux et volume d'alarme ;
 - absence de cartes dues ;
 - plusieurs alarmes à des heures différentes.
+- plusieurs alarmes à la même heure avec des sélections différentes ;
+- modification et suppression d'une alarme sans modifier les autres ;
+- redémarrage après migration depuis l'ancienne alarme unique ;
+- changement de fuseau et de date/heure système ;
+- alarme configurée sur un jour inactif ou sans jour ;
+- alarme située dans une transition DST.
 
 ## Première alarme — validation à effectuer
 

@@ -42,9 +42,26 @@ Le premier objectif est une installation locale sur le OnePlus 10 Pro. La public
 
 AnkiDroid 2.24 expose un endpoint `decks/` côté provider qui n'est pas encore représenté de manière stable dans le contrat public consommé par le projet. L'application tente donc de résoudre les noms par colonnes candidates (`deck_id`/`id`/`_id` et `name`/`deck_name`) et conserve l'identifiant comme fallback. Aucun accès direct à la base AnkiDroid n'est ajouté.
 
+## ADR-0008 — Modèle multi-alarmes
+
+**Statut :** accepté.
+
+Chaque alarme possède un identifiant stable, une heure, des jours actifs, un fuseau IANA et une sélection de decks. L'ancienne alarme unique est migrée vers une première alarme afin de préserver la configuration existante.
+
+## ADR-0009 — Alarmes chevauchantes
+
+**Statut :** accepté.
+
+Les alarmes simultanées partagent le même service de premier plan, la même notification et la même sortie audio. Elles conservent néanmoins des compteurs, sélections et états séparés. Le service s'arrête uniquement quand toutes les sessions sont terminées.
+
+## ADR-0010 — Fuseau horaire des alarmes
+
+**Statut :** accepté.
+
+Une alarme conserve le fuseau IANA présent lors de sa création ou modification. Les occurrences sont recalculées avec `java.time` et les alarmes sont reprogrammées après un changement de fuseau ou d'heure système. Une heure locale située dans un trou DST est avancée par les règles Java du fuseau.
+
 ## Questions ouvertes
 
 - Quelle version exacte d'AnkiDroid sera la version minimale supportée ?
 - Les cartes d'apprentissage momentanément non disponibles doivent-elles être exclues du compteur ?
-- Comment fusionner deux alarmes qui se déclenchent simultanément ?
 - Le délai de relance doit-il être identique pour toutes les alarmes ou configurable par alarme ?

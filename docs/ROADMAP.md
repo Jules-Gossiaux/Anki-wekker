@@ -33,10 +33,14 @@ Créer la documentation, les règles de projet et le socle Git. **Terminée.**
 
 ## Phase 4 — produit MVP
 
-- alarmes multiples ;
-- jours actifs ;
-- sélection persistante de decks avec confirmation explicite ; **prototype livré en Phase 1**
-- écran diagnostic ;
+- alarmes multiples ; **implémenté localement, validation appareil restante**
+- jours actifs ; **implémenté localement, validation appareil restante**
+- sélection persistante de decks avec confirmation explicite ; **par alarme implémentée localement**
+- création, modification, suppression et affichage des alarmes ; **implémenté localement**
+- calcul des prochaines occurrences, fuseaux horaires et DST ; **implémenté et testé localement**
+- fusion documentée des alarmes chevauchantes ; **implémentée localement, validation appareil restante**
+- restauration après redémarrage et changement de fuseau ; **implémentée localement, validation appareil restante**
+- écran diagnostic ; **prototype livré en Phase 1**
 - réglages audio, vibration et délais ;
 - tests manuels complets OxygenOS.
 
