@@ -15,14 +15,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +51,7 @@ import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidGateway
 import com.julesgossiaux.ankiwekker.ankidroid.AnkiDroidResult
 import com.julesgossiaux.ankiwekker.ankidroid.DueCardsSnapshot
 import kotlinx.coroutines.launch
-import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -67,7 +75,8 @@ private fun AnkiWekkerApp(
     alarmScheduler: AlarmScheduler,
 ) {
     var alarms by remember { mutableStateOf<List<AlarmSettings>>(emptyList()) }
-    var editingAlarm by remember { mutableStateOf<AlarmSettings?>(null) }
+    var editingAlarmId by remember { mutableStateOf<String?>(null) }
+    var draftAlarm by remember { mutableStateOf<AlarmSettings?>(null) }
     var status by remember { mutableStateOf("Prêt à configurer les alarmes") }
     var snapshot by remember { mutableStateOf<DueCardsSnapshot?>(null) }
     var decks by remember { mutableStateOf<List<AnkiDeck>>(emptyList()) }
@@ -85,6 +94,12 @@ private fun AnkiWekkerApp(
         if (alarmScheduler.canScheduleExactAlarms()) alarmScheduler.scheduleAll(alarms)
     }
 
+    fun closeEditor() {
+        editingAlarmId = null
+        draftAlarm = null
+        showDeckSelection = false
+    }
+
     fun persistAlarms(updated: List<AlarmSettings>, message: String) {
         alarms.filter { old -> updated.none { it.id == old.id } }.forEach(alarmScheduler::cancel)
         alarms = updated
@@ -93,6 +108,12 @@ private fun AnkiWekkerApp(
             if (alarmScheduler.canScheduleExactAlarms()) alarmScheduler.scheduleAll(updated)
             status = message
         }
+    }
+
+    fun openEditor(alarm: AlarmSettings) {
+        editingAlarmId = alarm.id
+        draftAlarm = alarm
+        showDeckSelection = false
     }
 
     fun loadDecks(alarm: AlarmSettings) {
@@ -117,7 +138,7 @@ private fun AnkiWekkerApp(
                             status = "Decks chargés, compteur indisponible"
                         }
                     }
-                    editingAlarm = alarm.copy(
+                    draftAlarm = alarm.copy(
                         selectedDeckIds = expandParentSelection(result.value, alarm.selectedDeckIds),
                     )
                 }
@@ -149,37 +170,87 @@ private fun AnkiWekkerApp(
         }
     }
 
+    fun saveDraft(alarm: AlarmSettings) {
+        when {
+            alarm.activeDays.isEmpty() -> status = "Sélectionne au moins un jour actif"
+            !alarmScheduler.canScheduleExactAlarms() -> {
+                context.startActivity(alarmScheduler.exactAlarmSettingsIntent())
+                status = "Autorise les alarmes exactes puis réessaie"
+            }
+            else -> {
+                val updated = if (alarms.any { it.id == alarm.id }) {
+                    alarms.map { if (it.id == alarm.id) alarm else it }
+                } else {
+                    alarms + alarm
+                }
+                persistAlarms(updated, "Alarme enregistrée")
+                closeEditor()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                }
+            }
+        }
+    }
+
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
             ) {
-                Text("Anki-wekker", style = MaterialTheme.typography.headlineMedium)
-                Text("Alarmes de révision", modifier = Modifier.padding(top = 12.dp))
-                Text(status, modifier = Modifier.padding(top = 16.dp))
+                Text(
+                    text = "Anki-wekker",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Ton réveil d'étude, configuré autour de tes cartes dues.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
 
-                Button(
-                    enabled = !loading,
-                    onClick = {
-                        editingAlarm = AlarmSettings(enabled = true)
-                        showDeckSelection = false
-                    },
-                    modifier = Modifier.padding(top = 16.dp),
-                ) { Text("Ajouter une alarme") }
+                StatusCard(status = status, modifier = Modifier.padding(top = 20.dp))
 
-                alarms.forEach { alarm ->
-                    AlarmRow(
-                        alarm = alarm,
-                        nextOccurrence = alarmScheduler.nextOccurrence(alarm),
-                        onEdit = {
-                            editingAlarm = alarm
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column {
+                        Text("Mes alarmes", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            text = "${alarms.size} configurée(s)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val newAlarm = AlarmSettings(enabled = true)
+                            editingAlarmId = newAlarm.id
+                            draftAlarm = newAlarm
                             showDeckSelection = false
                         },
+                    ) { Text("+ Ajouter") }
+                }
+
+                if (alarms.isEmpty()) {
+                    EmptyAlarmsCard(modifier = Modifier.padding(top = 12.dp))
+                }
+
+                alarms.forEach { alarm ->
+                    AlarmCard(
+                        alarm = alarm,
+                        nextOccurrence = alarmScheduler.nextOccurrence(alarm),
+                        onEdit = { openEditor(alarm) },
                         onToggle = {
                             persistAlarms(
                                 alarms.map { if (it.id == alarm.id) it.copy(enabled = !it.enabled) else it },
@@ -187,97 +258,137 @@ private fun AnkiWekkerApp(
                             )
                         },
                         onDelete = {
+                            if (editingAlarmId == alarm.id) closeEditor()
                             persistAlarms(alarms.filterNot { it.id == alarm.id }, "Alarme supprimée")
                         },
+                        modifier = Modifier.padding(top = 12.dp),
                     )
+                    if (editingAlarmId == alarm.id) {
+                        draftAlarm?.let { draft ->
+                            AlarmEditor(
+                                alarm = draft,
+                                decks = decks,
+                                dueCountsByDeckId = dueCountsByDeckId,
+                                showDeckSelection = showDeckSelection,
+                                loading = loading,
+                                onAlarmChange = { draftAlarm = it },
+                                onLoadDecks = { loadDecks(draft) },
+                                onReadDueCards = { readDueCards(draft.selectedDeckIds) },
+                                onConfirm = { saveDraft(draft) },
+                                onCancel = ::closeEditor,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
                 }
 
-                if (alarms.isEmpty()) {
-                    Text("Aucune alarme configurée", modifier = Modifier.padding(top = 20.dp))
-                }
-
-                Button(
-                    enabled = !loading,
-                    onClick = { readDueCards(editingAlarm?.selectedDeckIds ?: emptySet()) },
-                    modifier = Modifier.padding(top = 20.dp),
-                ) { Text("Lire les cartes dues") }
-                Button(
-                    onClick = {
-                        status = if (gateway.openAnkiDroid()) "AnkiDroid ouvert" else "Impossible d'ouvrir AnkiDroid"
-                    },
-                    modifier = Modifier.padding(top = 8.dp),
-                ) { Text("Ouvrir AnkiDroid") }
-                snapshot?.let { DueSummary(it) }
-
-                editingAlarm?.let { alarm ->
+                if (draftAlarm != null && alarms.none { it.id == editingAlarmId }) {
                     AlarmEditor(
-                        alarm = alarm,
+                        alarm = draftAlarm!!,
                         decks = decks,
                         dueCountsByDeckId = dueCountsByDeckId,
                         showDeckSelection = showDeckSelection,
                         loading = loading,
-                        onAlarmChange = { editingAlarm = it },
-                        onLoadDecks = { loadDecks(alarm) },
-                        onReadDueCards = { readDueCards(alarm.selectedDeckIds) },
-                        onConfirm = {
-                            if (alarm.activeDays.isEmpty()) {
-                                status = "Sélectionne au moins un jour"
-                            } else if (!alarmScheduler.canScheduleExactAlarms()) {
-                                context.startActivity(alarmScheduler.exactAlarmSettingsIntent())
-                                status = "Autorise les alarmes exactes puis réessaie"
-                            } else {
-                                val updated = if (alarms.any { it.id == alarm.id }) {
-                                    alarms.map { if (it.id == alarm.id) alarm else it }
-                                } else {
-                                    alarms + alarm
-                                }
-                                persistAlarms(updated, "Alarme enregistrée")
-                                editingAlarm = null
-                                showDeckSelection = false
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                                }
-                            }
-                        },
-                        onCancel = {
-                            editingAlarm = null
-                            showDeckSelection = false
-                        },
+                        onAlarmChange = { draftAlarm = it },
+                        onLoadDecks = { loadDecks(draftAlarm!!) },
+                        onReadDueCards = { readDueCards(draftAlarm!!.selectedDeckIds) },
+                        onConfirm = { saveDraft(draftAlarm!!) },
+                        onCancel = ::closeEditor,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+
+                DiagnosticSection(
+                    loading = loading,
+                    onReadDueCards = { readDueCards(draftAlarm?.selectedDeckIds ?: emptySet()) },
+                    onOpenAnkiDroid = {
+                        status = if (gateway.openAnkiDroid()) "AnkiDroid ouvert" else "Impossible d'ouvrir AnkiDroid"
+                    },
+                    snapshot = snapshot,
+                    modifier = Modifier.padding(top = 28.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun AlarmRow(
+private fun StatusCard(status: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("État", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(status, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyAlarmsCard(modifier: Modifier = Modifier) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Aucune alarme pour le moment", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Ajoute une alarme pour commencer tes révisions au réveil.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlarmCard(
     alarm: AlarmSettings,
-    nextOccurrence: java.time.ZonedDateTime?,
+    nextOccurrence: ZonedDateTime?,
     onEdit: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
-    ) {
-        Text(
-            text = "${formatAlarmTime(alarm.hour, alarm.minute)} — ${if (alarm.enabled) "Active" else "Désactivée"}",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text("Jours : ${formatDays(alarm.activeDays)}")
-        Text("Fuseau : ${alarm.zoneId}")
-        Text("Decks : ${if (alarm.selectedDeckIds.isEmpty()) "tous" else alarm.selectedDeckIds.size}")
-        Text("Prochaine occurrence : ${formatOccurrence(nextOccurrence)}")
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = onEdit, modifier = Modifier.padding(end = 4.dp)) { Text("Modifier") }
-            Button(onClick = onToggle, modifier = Modifier.padding(end = 4.dp)) {
-                Text(if (alarm.enabled) "Désactiver" else "Activer")
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        formatAlarmTime(alarm.hour, alarm.minute),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        if (alarm.enabled) "Active" else "Désactivée",
+                        color = if (alarm.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                Switch(checked = alarm.enabled, onCheckedChange = { onToggle() })
             }
-            Button(onClick = onDelete) { Text("Supprimer") }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+            AlarmSummaryLine("Jours", formatDays(alarm.activeDays))
+            AlarmSummaryLine("Decks", if (alarm.selectedDeckIds.isEmpty()) "Tous les decks" else "${alarm.selectedDeckIds.size} sélectionné(s)")
+            AlarmSummaryLine("Prochaine", formatOccurrence(nextOccurrence))
+            Text(
+                "Fuseau : ${alarm.zoneId}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Modifier") }
+                Spacer(modifier = Modifier.size(8.dp))
+                TextButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("Supprimer") }
+            }
         }
+    }
+}
+
+@Composable
+private fun AlarmSummaryLine(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(label, modifier = Modifier.weight(0.35f), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, modifier = Modifier.weight(0.65f), fontWeight = FontWeight.Medium)
     }
 }
 
@@ -293,76 +404,135 @@ private fun AlarmEditor(
     onReadDueCards: () -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp),
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Text("Modifier l'alarme", style = MaterialTheme.typography.titleLarge)
-        Button(
-            onClick = {
-                TimePickerDialog(
-                    context,
-                    { _, hour, minute -> onAlarmChange(alarm.copy(hour = hour, minute = minute)) },
-                    alarm.hour,
-                    alarm.minute,
-                    true,
-                ).show()
-            },
-            modifier = Modifier.padding(top = 8.dp),
-        ) { Text(formatAlarmTime(alarm.hour, alarm.minute)) }
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Modifier l'alarme", style = MaterialTheme.typography.titleLarge)
+            Text("Les changements seront appliqués à cette alarme uniquement.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
 
-        Text("Jours actifs", modifier = Modifier.padding(top = 12.dp))
-        Row(modifier = Modifier.fillMaxWidth()) {
-            (1..7).forEach { day ->
-                Button(
-                    onClick = {
-                        val days = if (day in alarm.activeDays) alarm.activeDays - day else alarm.activeDays + day
-                        onAlarmChange(alarm.copy(activeDays = days))
-                    },
-                    modifier = Modifier.padding(end = 2.dp),
-                ) { Text(dayLabels.getValue(day).take(2)) }
-            }
-        }
-        Text("Fuseau : ${alarm.zoneId}")
-        Button(onClick = onLoadDecks, enabled = !loading, modifier = Modifier.padding(top = 8.dp)) {
-            Text("Sélectionner les decks")
-        }
-        Button(onClick = onReadDueCards, enabled = !loading, modifier = Modifier.padding(top = 8.dp)) {
-            Text("Tester le compteur")
-        }
-        if (showDeckSelection && decks.isNotEmpty()) {
-            Text("Aucune sélection = tous les decks", modifier = Modifier.padding(top = 12.dp))
-            DeckSelectionTree(
-                decks = decks,
-                dueCountsByDeckId = dueCountsByDeckId,
-                selectedDeckIds = alarm.selectedDeckIds,
-                onSelectionChanged = { ids, checked ->
-                    onAlarmChange(alarm.copy(
-                        selectedDeckIds = if (checked) alarm.selectedDeckIds + ids else alarm.selectedDeckIds - ids,
-                    ))
+            OutlinedButton(
+                onClick = {
+                    TimePickerDialog(
+                        context,
+                        { _, hour, minute -> onAlarmChange(alarm.copy(hour = hour, minute = minute)) },
+                        alarm.hour,
+                        alarm.minute,
+                        true,
+                    ).show()
+                },
+                modifier = Modifier.padding(top = 16.dp),
+            ) { Text("Heure : ${formatAlarmTime(alarm.hour, alarm.minute)}") }
+
+            Text("Jours actifs", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+            Text(
+                "Appuie sur les jours souhaités. Les jours sélectionnés sont colorés.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            DaySelector(
+                selectedDays = alarm.activeDays,
+                onDayToggle = { day ->
+                    onAlarmChange(alarm.copy(activeDays = toggleDay(alarm.activeDays, day)))
                 },
                 modifier = Modifier.padding(top = 8.dp),
             )
-        }
-        Row(modifier = Modifier.padding(top = 12.dp)) {
-            Button(onClick = onConfirm, enabled = !loading, modifier = Modifier.padding(end = 8.dp)) {
-                Text("Enregistrer")
+            if (alarm.activeDays.isEmpty()) {
+                Text("Sélectionne au moins un jour pour enregistrer.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
             }
-            Button(onClick = onCancel) { Text("Annuler") }
+
+            Text("Decks AnkiDroid", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+            Text(
+                if (alarm.selectedDeckIds.isEmpty()) "Tous les decks seront surveillés." else "${alarm.selectedDeckIds.size} deck(s) sélectionné(s).",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = onLoadDecks, enabled = !loading, modifier = Modifier.weight(1f)) { Text("Choisir les decks") }
+                Spacer(modifier = Modifier.size(8.dp))
+                OutlinedButton(onClick = onReadDueCards, enabled = !loading, modifier = Modifier.weight(1f)) { Text("Tester") }
+            }
+            if (showDeckSelection && decks.isNotEmpty()) {
+                DeckSelectionTree(
+                    decks = decks,
+                    dueCountsByDeckId = dueCountsByDeckId,
+                    selectedDeckIds = alarm.selectedDeckIds,
+                    onSelectionChanged = { ids, checked ->
+                        onAlarmChange(alarm.copy(selectedDeckIds = if (checked) alarm.selectedDeckIds + ids else alarm.selectedDeckIds - ids))
+                    },
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Button(onClick = onConfirm, enabled = !loading && alarm.activeDays.isNotEmpty(), modifier = Modifier.weight(1f)) { Text("Enregistrer") }
+                Spacer(modifier = Modifier.size(8.dp))
+                TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Annuler") }
+            }
         }
     }
 }
 
 @Composable
-private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
-    Text("Total dû : ${snapshot.total}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
-    snapshot.decks.sortedBy { it.name }.forEach { deck ->
-        Text("${deck.name} : ${deck.cardCount}", modifier = Modifier.padding(top = 2.dp))
+private fun DaySelector(
+    selectedDays: Set<Int>,
+    onDayToggle: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (1..4).forEach { day -> DayChip(day, day in selectedDays, onDayToggle, Modifier.weight(1f)) }
+        }
+        Row(modifier = Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (5..7).forEach { day -> DayChip(day, day in selectedDays, onDayToggle, Modifier.weight(1f)) }
+        }
     }
-    Spacer(modifier = Modifier.padding(bottom = 4.dp))
+}
+
+@Composable
+private fun DayChip(day: Int, selected: Boolean, onDayToggle: (Int) -> Unit, modifier: Modifier = Modifier) {
+    FilterChip(
+        selected = selected,
+        onClick = { onDayToggle(day) },
+        label = { Text(dayLabels.getValue(day).take(3), modifier = Modifier.fillMaxWidth()) },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun DiagnosticSection(
+    loading: Boolean,
+    onReadDueCards: () -> Unit,
+    onOpenAnkiDroid: () -> Unit,
+    snapshot: DueCardsSnapshot?,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text("Diagnostic", style = MaterialTheme.typography.headlineSmall)
+        Text("Vérifie la connexion avec AnkiDroid avant une session.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+        Row(modifier = Modifier.padding(top = 10.dp)) {
+            OutlinedButton(onClick = onReadDueCards, enabled = !loading, modifier = Modifier.weight(1f)) { Text("Lire les cartes") }
+            Spacer(modifier = Modifier.size(8.dp))
+            OutlinedButton(onClick = onOpenAnkiDroid, modifier = Modifier.weight(1f)) { Text("Ouvrir AnkiDroid") }
+        }
+        snapshot?.let { DueSummary(it) }
+    }
+}
+
+@Composable
+private fun ColumnScope.DueSummary(snapshot: DueCardsSnapshot) {
+    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Cartes dues : ${snapshot.total}", style = MaterialTheme.typography.titleMedium)
+            snapshot.decks.sortedBy { it.name }.forEach { deck ->
+                Text("${deck.name} : ${deck.cardCount}", modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
 }
 
 private val dayLabels = mapOf(
@@ -371,13 +541,16 @@ private val dayLabels = mapOf(
 )
 
 private fun formatDays(days: Set<Int>): String =
-    if (days.isEmpty()) "aucun" else days.sorted().joinToString(", ") { dayLabels.getValue(it).take(2) }
+    if (days.isEmpty()) "Aucun jour" else days.sorted().joinToString(" · ") { dayLabels.getValue(it).take(3) }
+
+internal fun toggleDay(selectedDays: Set<Int>, day: Int): Set<Int> =
+    if (day in selectedDays) selectedDays - day else selectedDays + day
 
 private fun formatAlarmTime(hour: Int, minute: Int): String = "%02d:%02d".format(hour, minute)
 
-private fun formatOccurrence(value: java.time.ZonedDateTime?): String = value?.format(
-    DateTimeFormatter.ofPattern("EEE dd/MM HH:mm z", Locale.getDefault()),
-) ?: "aucune"
+private fun formatOccurrence(value: ZonedDateTime?): String = value?.format(
+    DateTimeFormatter.ofPattern("EEE dd/MM à HH:mm z", Locale.getDefault()),
+) ?: "Aucune occurrence"
 
 private data class DeckTreeNode(
     val name: String,
@@ -399,16 +572,7 @@ private fun DeckSelectionTree(
     val roots = remember(decks, dueCountsByDeckId) { buildDeckTree(decks, dueCountsByDeckId) }
     Column(modifier = modifier) {
         roots.forEach { node ->
-            DeckTreeRow(
-                node = node,
-                level = 0,
-                expandedPaths = expandedPaths,
-                onExpandToggle = { path ->
-                    expandedPaths = if (path in expandedPaths) expandedPaths - path else expandedPaths + path
-                },
-                selectedDeckIds = selectedDeckIds,
-                onSelectionChanged = onSelectionChanged,
-            )
+            DeckTreeRow(node, 0, expandedPaths, { path -> expandedPaths = if (path in expandedPaths) expandedPaths - path else expandedPaths + path }, selectedDeckIds, onSelectionChanged)
         }
     }
 }
@@ -426,39 +590,20 @@ private fun DeckTreeRow(
     val expanded = node.path in expandedPaths
     val nodeDeckIds = node.allDeckIds()
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = hasChildren) { onExpandToggle(node.path) }
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = hasChildren) { onExpandToggle(node.path) }.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = when {
-                !hasChildren -> ""
-                expanded -> "⌄"
-                else -> "›"
-            },
-            modifier = Modifier.padding(start = (level * 20).dp).weight(0.08f),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Text(if (!hasChildren) "" else if (expanded) "⌄" else "›", modifier = Modifier.padding(start = (level * 20).dp).size(20.dp))
         node.deck?.let {
-            Checkbox(
+            androidx.compose.material3.Checkbox(
                 checked = nodeDeckIds.all { it in selectedDeckIds },
                 onCheckedChange = { checked -> onSelectionChanged(nodeDeckIds, checked) },
             )
         }
-        Text(
-            text = node.name,
-            fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(start = 8.dp).weight(1f),
-        )
+        Text(node.name, fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(start = 8.dp).weight(1f))
         Text(node.dueCount.toString(), fontWeight = if (hasChildren) FontWeight.Bold else FontWeight.Normal)
     }
-    if (expanded) {
-        node.children.forEach { child ->
-            DeckTreeRow(child, level + 1, expandedPaths, onExpandToggle, selectedDeckIds, onSelectionChanged)
-        }
-    }
+    if (expanded) node.children.forEach { child -> DeckTreeRow(child, level + 1, expandedPaths, onExpandToggle, selectedDeckIds, onSelectionChanged) }
 }
 
 private fun DeckTreeNode.allDeckIds(): Set<String> = buildSet {
@@ -467,39 +612,27 @@ private fun DeckTreeNode.allDeckIds(): Set<String> = buildSet {
 }
 
 private fun buildDeckTree(decks: List<AnkiDeck>, dueCountsByDeckId: Map<String, Int>): List<DeckTreeNode> {
-    class MutableNode(
-        val name: String,
-        val path: String,
-        var deck: AnkiDeck? = null,
-        val children: MutableMap<String, MutableNode> = sortedMapOf(),
-    )
+    class MutableNode(val name: String, val path: String, var deck: AnkiDeck? = null, val children: MutableMap<String, MutableNode> = sortedMapOf())
     val roots = sortedMapOf<String, MutableNode>()
     decks.forEach { deck ->
         var currentChildren: MutableMap<String, MutableNode> = roots
         var path = ""
-        deck.name.split("::").forEachIndexed { index, part ->
+        val parts = deck.name.split("::")
+        parts.forEachIndexed { index, part ->
             path = if (path.isEmpty()) part else "$path::$part"
             val node = currentChildren.getOrPut(part) { MutableNode(part, path) }
-            if (index == deck.name.split("::").lastIndex) node.deck = deck
+            if (index == parts.lastIndex) node.deck = deck
             currentChildren = node.children
         }
     }
     fun convert(nodes: Collection<MutableNode>): List<DeckTreeNode> = nodes.sortedBy { it.name }.map { node ->
         val children = convert(node.children.values)
-        DeckTreeNode(
-            name = node.name,
-            path = node.path,
-            deck = node.deck,
-            dueCount = (node.deck?.let { dueCountsByDeckId[it.identifier] ?: 0 } ?: 0) + children.sumOf { it.dueCount },
-            children = children,
-        )
+        DeckTreeNode(node.name, node.path, node.deck, (node.deck?.let { dueCountsByDeckId[it.identifier] ?: 0 } ?: 0) + children.sumOf { it.dueCount }, children)
     }
     return convert(roots.values)
 }
 
 private fun expandParentSelection(decks: List<AnkiDeck>, selectedDeckIds: Set<String>): Set<String> {
     val selectedNames = decks.filter { it.identifier in selectedDeckIds }.map { it.name }
-    return selectedDeckIds + decks.filter { deck ->
-        selectedNames.any { parent -> deck.name == parent || deck.name.startsWith("$parent::") }
-    }.map { it.identifier }
+    return selectedDeckIds + decks.filter { deck -> selectedNames.any { parent -> deck.name == parent || deck.name.startsWith("$parent::") } }.map { it.identifier }
 }
